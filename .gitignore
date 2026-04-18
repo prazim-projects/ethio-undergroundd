@@ -35,3 +35,15 @@ yarn-error.log*
 
 # vercel
 .vercel
+apps/api/db.sqlite3
+
+# python
+__pycache__/
+*.py[cod]
+.vscode/
+.idea/
+.venv/
+venv/
+apps/api/venv-underground/
+apps/api/tracks/
+apps/api/covers/

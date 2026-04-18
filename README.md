@@ -1,84 +1,275 @@
-# Turborepo VueJS/NuxtJS starter
+# Underground Musician Catalog
 
-This is a community-maintained example. If you experience a problem, please submit a pull request with a fix. GitHub Issues will be closed.
+This repository is a Turborepo-based full stack app for discovering underground musicians.
 
-## Using this example
+The project is split into a Vue/Nuxt frontend, a Django GraphQL API, and shared packages used by both. Day 1 and Day 2 backend milestones are complete.
 
-Run the following command:
+## Tech Stack
 
-```sh
-npx create-turbo@latest -e with-vue-nuxt
+- Turborepo for workspace orchestration
+- Nuxt 3 / Vue for the frontend
+- Django 5 for the API
+- Graphene-Django for GraphQL
+- Tailwind CSS for UI styling
+
+## Repository Layout
+
+- `apps/api` is the Django backend.
+- `apps/web` is the main Nuxt frontend.
+- `apps/docs` is the Nuxt docs/demo app.
+- `packages/ui` is the shared Vue component library.
+- `packages/tsconfig` and `packages/eslint-config-custom` contain shared TypeScript and lint settings.
+
+## How Turborepo Works Here
+
+The root `package.json` defines workspace-level scripts that forward into each app/package.
+
+- `npm run dev` runs the `dev` script in every workspace that defines one.
+- `npm run build` runs the `build` script in every workspace that defines one.
+- `npm run lint` runs lint tasks across the workspace.
+
+The root `turbo.json` configures task behavior:
+
+- `build` depends on dependency builds and caches Nuxt outputs.
+- `lint` is a standard workspace lint task.
+- `dev` is persistent and uncached so it can keep servers running.
+
+In practice, this means Turbo lets you manage the repo as one project while still keeping each app independent.
+
+## Current Backend State (Day 1 + Day 2)
+
+The API is set up in `apps/api` with these pieces:
+
+- `api_root/settings.py` adds `catalog`, `corsheaders`, and `graphene_django`.
+- `api_root/settings.py` also enables CORS for local development.
+- `api_root/settings.py` points Graphene to `schema.schema`.
+- `api_root/urls.py` exposes GraphQL with GraphiQL at `/graphql`.
+- `catalog/models.py` defines the core musician data model.
+- `catalog/migrations/0001_initial.py` creates the initial tables.
+- `catalog/admin.py` registers the models in Django Admin.
+- `schema.py` defines GraphQL object types and queries.
+
+Models:
+
+- `Artist`: `name`, `genre`, `bio`, `location`
+- `Album`: `artist` foreign key, `title`, `release_date`, `cover_image`
+- `Track`: `album` foreign key, `title`, `audio_file`
+
+Implemented GraphQL queries:
+
+- `allArtists`
+- `artistDetail(id)`
+- `tracksByGenre(genre)`
+
+## Local Setup
+
+### Prerequisites
+
+- Node.js installed
+- Python installed
+- Git installed
+
+The backend uses the virtual environment already present in `apps/api/venv-underground`.
+
+### 1. Install Node dependencies
+
+From the repo root:
+
+```powershell
+npm install
 ```
 
-## What's inside?
+### 2. Install Python dependencies
 
-This Turborepo includes the following packages/apps:
+From `apps/api`:
 
-### Apps and Packages
-
-- `docs`: a [Nuxt](https://nuxt.com/) app
-- `web`: another [Vue3](https://vuejs.org/) app
-- `ui`: a stub Vue component library shared by both `web` and `docs` applications
-- `eslint-config-custom`: `eslint` configurations (includes `@nuxtjs/eslint-config-typescript` and `@vue/eslint-config-typescript`)
-- `tsconfig`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-npm build
+```powershell
+venv-underground\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-### Develop
+This installs:
 
-To develop all apps and packages, run the following command:
+- Django
+- django-cors-headers
+- graphene-django
+- Pillow
 
-```
-cd my-turborepo
-npm dev
-```
+### 3. Apply database migrations
 
-### Remote Caching
+From `apps/api`:
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-npx turbo login
+```powershell
+venv-underground\Scripts\python.exe manage.py migrate
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+This creates the SQLite schema used by the catalog models.
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+### 4. Create an admin user
 
+From `apps/api`:
+
+```powershell
+venv-underground\Scripts\python.exe manage.py createsuperuser
 ```
-npx turbo link
+
+This lets you log into Django Admin at `/admin/`.
+
+### 5. Run the Django backend
+
+From `apps/api`:
+
+```powershell
+npm run dev
 ```
 
-## Useful Links
+That runs:
 
-Learn more about the power of Turborepo:
+```powershell
+venv-underground\Scripts\python.exe manage.py runserver 8000
+```
 
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+Backend URL:
+
+- `http://127.0.0.1:8000/`
+
+Admin URL:
+
+- `http://127.0.0.1:8000/admin/`
+
+GraphQL URL:
+
+- `http://127.0.0.1:8000/graphql`
+
+### 6. Run the workspace frontend apps
+
+From the repo root in another terminal:
+
+```powershell
+npm run dev
+```
+
+Turbo will start each app that exposes a `dev` script.
+
+## Useful Commands
+
+From `apps/api`:
+
+```powershell
+npm run makemigrations
+npm run migrate
+npm run dev
+```
+
+From the repo root:
+
+```powershell
+npm run dev
+npm run build
+npm run lint
+```
+
+## How To Test Day 2 GraphQL
+
+### 1. Start backend
+
+From `apps/api`:
+
+```powershell
+npm run dev
+```
+
+### 2. Test in GraphiQL
+
+Open:
+
+- `http://127.0.0.1:8000/graphql`
+
+Run:
+
+```graphql
+query {
+	allArtists {
+		id
+		name
+		genre
+		location
+	}
+}
+```
+
+Run:
+
+```graphql
+query {
+	artistDetail(id: 1) {
+		id
+		name
+		genre
+	}
+}
+```
+
+Run:
+
+```graphql
+query {
+	tracksByGenre(genre: "Indie") {
+		id
+		title
+		album {
+			title
+			artist {
+				name
+			}
+		}
+	}
+}
+```
+
+### 3. If DB is empty, seed sample data
+
+From `apps/api`:
+
+```powershell
+venv-underground\Scripts\python.exe manage.py shell -c "from catalog.models import Artist,Album,Track; from datetime import date; from django.core.files.base import ContentFile; a,_=Artist.objects.get_or_create(name='Night Echo',defaults={'genre':'Indie','bio':'Live from basements','location':'Addis Ababa'}); album,_=Album.objects.get_or_create(artist=a,title='Street Signals',defaults={'release_date':date(2025,1,10)}); t,_=Track.objects.get_or_create(album=album,title='Static Bloom'); (not t.audio_file) and t.audio_file.save('static-bloom.txt', ContentFile(b'demo audio placeholder'), save=True); print('seeded')"
+```
+
+### 4. Test GraphQL over HTTP
+
+From another terminal:
+
+```powershell
+curl -X POST http://127.0.0.1:8000/graphql -H "Content-Type: application/json" -d '{"query":"{ allArtists { id name genre location } }"}'
+```
+
+## Working With the Repo
+
+- Put backend changes in `apps/api`.
+- Put frontend page and Nuxt work in `apps/web`.
+- Put reusable UI pieces in `packages/ui`.
+- Keep shared TypeScript or lint rules in the `packages/*` config folders.
+
+## GitHub / Push Notes
+
+The `.gitignore` is configured to keep local-only files out of the repo, including:
+
+- Node modules
+- Turbo cache
+- Python bytecode
+- Local Django SQLite database
+- Virtual environments
+- Editor settings like `.vscode/`
+
+If VS Code shows import warnings for Django or Graphene, use the API interpreter:
+
+- `apps/api/venv-underground/Scripts/python.exe`
+
+## What To Do Next
+
+The next planned step is Day 3:
+
+- create shared UI components in `packages/ui`
+- build `ArtistCard.vue` and `GenreBadge.vue`
+- export components via `packages/ui/index.ts`
+
+After that, connect these components to live GraphQL data in the frontend.
