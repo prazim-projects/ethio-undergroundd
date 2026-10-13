@@ -1,0 +1,18 @@
+{
+  "name": "Ethio Underground",
+  "short_name": "Underground",
+  "description": "A creator catalog for independent music and creative work.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f1e8",
+  "theme_color": "#193b35",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

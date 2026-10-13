@@ -1,3 +1,23 @@
+interface ImportMetaEnv {
+  readonly MODE: string;
+  readonly VITE_API_URL?: string;
+  readonly VITE_GOOGLE_CLIENT_ID?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
+interface Window {
+  google?: {
+    accounts: {
+      id: {
+        initialize: (options: { client_id: string; callback: (response: { credential: string }) => void }) => void;
+        renderButton: (element: HTMLElement, options: { theme: string; size: string; width: number }) => void;
+      };
+    };
+  };
+}
 /// <reference types="vite/client" />
 
 declare module "*.vue" {
