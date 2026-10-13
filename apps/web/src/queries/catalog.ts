@@ -2,6 +2,7 @@ export const CATALOG_QUERY = `
   query Catalog($genre: String) {
     allArtists {
       id
+      publicId
       name
       genre
       bio
@@ -22,6 +23,8 @@ export const CATALOG_QUERY = `
     }
     allProfiles {
       id
+      publicId
+      username
       displayName
       profileType
       bio
@@ -55,6 +58,8 @@ export const CATALOG_QUERY = `
       downloadCount
       creator {
         id
+        publicId
+        username
         displayName
         profileType
         bio

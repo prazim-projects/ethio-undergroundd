@@ -4,6 +4,7 @@ import { queryGraphQL } from "../lib/graphql";
 
 export interface CatalogArtist {
   id: string;
+  publicId: string;
   name: string;
   genre: string;
   bio: string;
@@ -44,6 +45,8 @@ export interface CreativeWork {
 
 export interface CatalogProfile {
   id: string;
+  publicId: string;
+  username: string;
   displayName: string;
   profileType: "listener" | "creator";
   bio: string;

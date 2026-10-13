@@ -51,8 +51,8 @@ export function workStreamUrl(workId?: string | number | null): string | undefin
   return `${API_ORIGIN}/works/${workId}/stream/`;
 }
 
-export function artistProfilePath(creatorId: string): string {
-  return `/creators/${encodeURIComponent(creatorId)}`;
+export function artistProfilePath(publicId: string): string {
+  return `/creators/${encodeURIComponent(publicId)}`;
 }
 
 async function postEmpty<T>(path: string) {

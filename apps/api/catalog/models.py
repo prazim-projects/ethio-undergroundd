@@ -1,8 +1,11 @@
+import uuid
+
 from django.db import models
 from django.contrib.auth.models import User
 
 
 class Artist(models.Model):
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     name = models.CharField(max_length=200)
     genre = models.CharField(max_length=100)
     bio = models.TextField(blank=True)
@@ -39,6 +42,7 @@ class CreatorProfile(models.Model):
         CREATOR = "creator", "Artist / creator"
 
     user = models.OneToOneField(User, related_name="creator_profile", on_delete=models.CASCADE)
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     display_name = models.CharField(max_length=160)
     profile_type = models.CharField(max_length=16, choices=ProfileType.choices, default=ProfileType.LISTENER)
     bio = models.TextField(blank=True)

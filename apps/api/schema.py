@@ -20,9 +20,14 @@ class TrackType(DjangoObjectType):
 
 
 class CreatorProfileType(DjangoObjectType):
+    username = graphene.String()
+
     class Meta:
         model = CreatorProfile
         fields = "__all__"
+
+    def resolve_username(self, info):
+        return self.user.username
 
 
 class CreativeWorkType(DjangoObjectType):

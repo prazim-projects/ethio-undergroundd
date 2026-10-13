@@ -81,8 +81,12 @@
         <section class="search-panel">
           <form class="search-panel__form" @submit.prevent="submitSearch">
             <input v-model="searchDraft" type="search" placeholder="Search creators, cities, genres, and works" aria-label="Search catalog" />
-            <select v-model="selectedGenre" aria-label="Filter by genre">
-              <option value="">All genres</option>
+            <select v-model="selectedWorkType" aria-label="Filter by art type">
+              <option value="">All art types</option>
+              <option v-for="type in workTypes" :key="type" :value="type">{{ formatType(type) }}</option>
+            </select>
+            <select v-if="selectedWorkType === 'music'" v-model="selectedMusicGenre" aria-label="Filter music by genre">
+              <option value="">All music genres</option>
               <option v-for="genre in genres" :key="genre" :value="genre">{{ genre }}</option>
             </select>
             <button class="primary-button" type="submit">Search</button>
@@ -151,6 +155,7 @@
             </aside>
           </div>
         </section>
+        <p v-else-if="loading" class="py-12 text-center text-[#68716a]">Loading creator profile...</p>
         <div v-else class="empty-state">That creator page could not be found.</div>
       </template>
 
@@ -221,7 +226,8 @@ const { artists, profiles, tracks, works, loading, error, load } = useCatalog();
 const { user, isAuthenticated } = useAuth();
 const searchDraft = ref("");
 const submittedSearch = ref("");
-const selectedGenre = ref("");
+const selectedWorkType = ref("");
+const selectedMusicGenre = ref("");
 const currentPath = ref(window.location.pathname);
 const paymentError = ref("");
 
@@ -240,6 +246,8 @@ interface CatalogItem {
   key: string;
   title: string;
   type: string;
+  typeKey: string;
+  genre: string;
   creatorName: string;
   description?: string;
   thumbnail?: string;
@@ -253,6 +261,7 @@ interface CatalogItem {
 }
 interface CreatorCard {
   id: string;
+  publicId: string;
   name: string;
   kind: string;
   location: string;
@@ -265,7 +274,27 @@ const selectedTrack = ref<PlayableItem | null>(null);
 const autoplayToken = ref(0);
 type AppPage = "home" | "search" | "creator" | "publish" | "creations" | "profile";
 
-const genres = computed(() => [...new Set(artists.value.map((artist) => artist.genre))].sort());
+const genres = computed(() => [...new Set(artists.value.map((artist) => artist.genre).filter(Boolean))].sort());
+const workTypes = computed(() => [...new Set(catalogItems.value.map((item) => item.typeKey))].sort());
+const creatorWorkTypes = computed(() => {
+  const types = new Map<string, Set<string>>();
+  for (const item of catalogItems.value) {
+    const nextTypes = types.get(item.creatorName) ?? new Set<string>();
+    nextTypes.add(item.typeKey);
+    types.set(item.creatorName, nextTypes);
+  }
+  return types;
+});
+const creatorMusicGenres = computed(() => {
+  const musicGenres = new Map<string, Set<string>>();
+  for (const item of catalogItems.value) {
+    if (item.typeKey !== "music" || !item.genre) continue;
+    const nextGenres = musicGenres.get(item.creatorName) ?? new Set<string>();
+    nextGenres.add(item.genre);
+    musicGenres.set(item.creatorName, nextGenres);
+  }
+  return musicGenres;
+});
 const currentPage = computed<AppPage>(() => {
   if (currentPath.value.startsWith("/creators/")) return "creator";
   if (currentPath.value === "/search") return "search";
@@ -302,6 +331,7 @@ const creatorCards = computed<CreatorCard[]>(() => {
     .filter((profile) => profile.profileType === "creator")
     .map((profile) => ({
       id: `profile-${profile.id}`,
+      publicId: profile.publicId,
       name: profile.displayName,
       kind: profile.disciplines[0] ?? "creator",
       location: profile.location,
@@ -311,6 +341,7 @@ const creatorCards = computed<CreatorCard[]>(() => {
     }));
   const legacyCards = artists.value.map((artist) => ({
     id: `artist-${artist.id}`,
+    publicId: artist.publicId,
     name: artist.name,
     kind: artist.genre,
     location: artist.location,
@@ -322,7 +353,7 @@ const creatorCards = computed<CreatorCard[]>(() => {
 });
 const popularCreators = computed(() => creatorCards.value.filter((creator) => creator.popularity > 0).slice(0, 4));
 const creatorRouteId = computed(() => decodeURIComponent(currentPath.value.replace(/^\/creators\/?/, "")));
-const creatorDetail = computed(() => creatorCards.value.find((creator) => creator.id === creatorRouteId.value));
+const creatorDetail = computed(() => creatorCards.value.find((creator) => creator.publicId === creatorRouteId.value || creator.id === creatorRouteId.value));
 const playableItems = computed<PlayableItem[]>(() => {
   const musicWorks = works.value
     .filter((work) => work.workType === "music")
@@ -363,11 +394,13 @@ const catalogItems = computed<CatalogItem[]>(() => {
       key: `work-${work.id}`,
       title: work.title,
       type: work.workType.replace("_", " "),
+      typeKey: work.workType,
+      genre: work.workType === "music" ? "music" : "",
       creatorName: work.creator.displayName,
       description: work.description,
       thumbnail: mediaUrl(work.thumbnail),
-      openUrl: artistProfilePath(`profile-${work.creator.id}`),
-      creatorProfilePath: artistProfilePath(`profile-${work.creator.id}`),
+      openUrl: artistProfilePath(work.creator.publicId),
+      creatorProfilePath: artistProfilePath(work.creator.publicId),
       isPayable: work.isPayable,
       priceEtb: work.priceEtb,
       playCount: work.playCount,
@@ -379,10 +412,12 @@ const catalogItems = computed<CatalogItem[]>(() => {
     key: `track-${track.id}`,
     title: track.title,
     type: "music",
+    typeKey: "music",
+    genre: artists.value.find((artist) => artist.name === track.album.artist.name)?.genre ?? "",
     creatorName: track.album.artist.name,
     description: track.album.title,
-    openUrl: artistProfilePath(`artist-${artists.value.find((artist) => artist.name === track.album.artist.name)?.id ?? track.album.artist.name}`),
-    creatorProfilePath: artistProfilePath(`artist-${artists.value.find((artist) => artist.name === track.album.artist.name)?.id ?? track.album.artist.name}`),
+    openUrl: artistProfilePath(artists.value.find((artist) => artist.name === track.album.artist.name)?.publicId ?? track.album.artist.name),
+    creatorProfilePath: artistProfilePath(artists.value.find((artist) => artist.name === track.album.artist.name)?.publicId ?? track.album.artist.name),
     isPayable: false,
     priceEtb: "0.00",
     playCount: track.playCount,
@@ -394,17 +429,27 @@ const catalogItems = computed<CatalogItem[]>(() => {
 const filteredCreators = computed(() => creatorCards.value.filter((creator) => {
   const term = submittedSearch.value.toLowerCase().trim();
   const matchesText = !term || `${creator.name} ${creator.location} ${creator.kind} ${creator.bio}`.toLowerCase().includes(term);
-  return matchesText && (!selectedGenre.value || creator.kind.toLowerCase() === selectedGenre.value.toLowerCase());
+  const matchesType = !selectedWorkType.value || creatorWorkTypes.value.get(creator.name)?.has(selectedWorkType.value);
+  const matchesMusicGenre = selectedWorkType.value !== "music" || !selectedMusicGenre.value || creatorMusicGenres.value.get(creator.name)?.has(selectedMusicGenre.value);
+  return matchesText && matchesType && matchesMusicGenre;
 }));
 const filteredPlayableItems = computed(() => playableItems.value.filter((item) => {
   const term = submittedSearch.value.toLowerCase().trim();
   const matchesText = !term || `${item.title} ${item.creatorName} ${item.album.title} ${item.description ?? ""}`.toLowerCase().includes(term);
-  return matchesText && (!selectedGenre.value || item.album.title.toLowerCase().includes(selectedGenre.value.toLowerCase()) || item.creatorName.toLowerCase().includes(selectedGenre.value.toLowerCase()));
+  const catalogItem = catalogItems.value.find((work) => work.playable?.key === item.key);
+  const matchesType = !selectedWorkType.value || catalogItem?.typeKey === selectedWorkType.value;
+  const matchesMusicGenre = selectedWorkType.value !== "music" || !selectedMusicGenre.value || catalogItem?.genre.toLowerCase() === selectedMusicGenre.value.toLowerCase();
+  return matchesText && matchesType && matchesMusicGenre;
 }));
 const visibleCatalogItems = computed(() => {
   if (currentPage.value !== "search") return catalogItems.value;
   const term = submittedSearch.value.toLowerCase().trim();
-  return catalogItems.value.filter((item) => !term || `${item.title} ${item.creatorName} ${item.type} ${item.description ?? ""}`.toLowerCase().includes(term));
+  return catalogItems.value.filter((item) => {
+    const matchesText = !term || `${item.title} ${item.creatorName} ${item.type} ${item.genre} ${item.description ?? ""}`.toLowerCase().includes(term);
+    const matchesType = !selectedWorkType.value || item.typeKey === selectedWorkType.value;
+    const matchesMusicGenre = selectedWorkType.value !== "music" || !selectedMusicGenre.value || item.genre.toLowerCase() === selectedMusicGenre.value.toLowerCase();
+    return matchesText && matchesType && matchesMusicGenre;
+  });
 });
 const creatorWorks = computed(() => {
   if (!creatorDetail.value) return [];
@@ -427,7 +472,7 @@ function submitSearch() {
 
 function viewCreator(creator: CreatorCard) {
   selectedTrack.value = playableItems.value.find((track) => track.creatorName === creator.name) ?? null;
-  goTo(`/creators/${encodeURIComponent(creator.id)}`);
+  goTo(artistProfilePath(creator.publicId));
 }
 
 function selectTrack(track: PlayableItem | TrackListItem) {
@@ -474,12 +519,20 @@ function scrollToTop() {
 watch(playableItems, (items) => {
   if (!selectedTrack.value && items.length) selectedTrack.value = items[0];
 });
-watch(selectedGenre, () => {
+function formatType(type: string) {
+  return type.replace("_", " ");
+}
+
+watch(selectedWorkType, () => {
+  submittedSearch.value = searchDraft.value;
+  if (selectedWorkType.value !== "music") selectedMusicGenre.value = "";
+});
+watch(selectedMusicGenre, () => {
   submittedSearch.value = searchDraft.value;
 });
 onMounted(() => {
   window.addEventListener("popstate", handlePopState);
   load();
 });
-watch(selectedGenre, (genre) => load(genre || undefined));
+watch(selectedMusicGenre, (genre) => load(selectedWorkType.value === "music" ? genre || undefined : undefined));
 </script>
