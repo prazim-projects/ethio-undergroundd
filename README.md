@@ -2,7 +2,9 @@
 
 This repository is a Turborepo-based full stack app for discovering underground musicians.
 
-The project is split into a Vue/Nuxt frontend, a Django GraphQL API, and shared packages used by both. Day 1, Day 2, and Day 3 milestones are complete.
+The project is split into a Vue/Vite frontend, a Django GraphQL API, and shared packages used by both. Days 1–7 are implemented.
+
+Creators can now create an account, sign in with email/password or Google, and publish music, photography, visual art, videography, poetry, or other files.
 
 ## Tech Stack
 
@@ -36,7 +38,7 @@ The root `turbo.json` configures task behavior:
 
 In practice, this means Turbo lets you manage the repo as one project while still keeping each app independent.
 
-## Current Backend State (Day 1 + Day 2)
+## Current Backend State (Days 1, 2, and 6)
 
 The API is set up in `apps/api` with these pieces:
 
@@ -44,29 +46,63 @@ The API is set up in `apps/api` with these pieces:
 - `api_root/settings.py` also enables CORS for local development.
 - `api_root/settings.py` points Graphene to `schema.schema`.
 - `api_root/urls.py` exposes GraphQL with GraphiQL at `/graphql`.
+- `api_root/urls.py` serves uploaded development media at `/media/`.
 - `catalog/models.py` defines the core musician data model.
 - `catalog/migrations/0001_initial.py` creates the initial tables.
 - `catalog/admin.py` registers the models in Django Admin.
 - `schema.py` defines GraphQL object types and queries.
+- `catalog/auth.py` provides email/password and Google credential sign-in.
+- `catalog/uploads.py` provides authenticated multipart work uploads.
 
 Models:
 
 - `Artist`: `name`, `genre`, `bio`, `location`
 - `Album`: `artist` foreign key, `title`, `release_date`, `cover_image`
 - `Track`: `album` foreign key, `title`, `audio_file`
+- `CreatorProfile`: authenticated user profile, disciplines, location, and avatar.
+- `CreativeWork`: creator-owned file with a title, discipline, description, and publication state.
 
 Implemented GraphQL queries:
 
 - `allArtists`
 - `artistDetail(id)`
 - `tracksByGenre(genre)`
+- `allWorks(workType)`
+- `currentCreator`
 
-## Current UI Package State (Day 3)
+Authentication endpoints:
+
+- `POST /auth/sign-up/`
+- `POST /auth/sign-in/`
+- `POST /auth/google/`
+
+Upload endpoint:
+
+- `POST /works/upload/` with `Authorization: Token <token>` and multipart fields `title`, `workType`, `description`, and `file`.
+
+Supported work types:
+
+- `music`
+- `photography`
+- `visual_art`
+- `videography`
+- `poetry`
+- `other`
+
+Media configuration:
+
+- Cover art is stored under `media/covers/`.
+- Audio files are stored under `media/tracks/`.
+- Django serves both from `http://127.0.0.1:8000/media/` while `DEBUG=True`.
+
+## Current UI Package State (Days 3 and 6)
 
 The shared `packages/ui` package now includes:
 
 - `artist-card.vue`
 - `genre-badge.vue`
+- `audio-player.vue`
+- `track-list.vue`
 - exports in `packages/ui/index.ts`
 - Tailwind setup in `packages/ui/tailwind.config.cjs` and `packages/ui/postcss.config.cjs`
 - shared Tailwind entry CSS in `packages/ui/src/tailwind.css`
@@ -162,6 +198,9 @@ Admin URL:
 GraphQL URL:
 
 - `http://127.0.0.1:8000/graphql`
+- `http://127.0.0.1:8000/graphql/`
+
+The GraphQL view is CSRF-exempt because it is a JSON API endpoint consumed by the Vite frontend. Django form/admin requests remain protected by the normal CSRF middleware.
 
 ### 6. Run the workspace frontend apps
 
@@ -172,6 +211,28 @@ npm run dev
 ```
 
 Turbo will start each app that exposes a `dev` script.
+
+The main Vite web app is available at:
+
+- `http://127.0.0.1:3000/`
+
+The web app reads the API from `VITE_API_URL`, defaulting to:
+
+- `http://127.0.0.1:8000/graphql/`
+
+To use another API URL, create `apps/web/.env.local`:
+
+```env
+VITE_API_URL=http://127.0.0.1:8000/graphql/
+```
+
+To enable the Google button, add your Google OAuth web client ID to the same file:
+
+```env
+VITE_GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
+```
+
+The Google credential is verified server-side by Django. A client ID alone is not enough to authenticate a user.
 
 ## Useful Commands
 
@@ -189,6 +250,14 @@ From the repo root:
 npm run dev
 npm run build
 npm run lint
+npm run test
+```
+
+For the local Postgres service planned for later production configuration:
+
+```powershell
+npm run db:up
+npm run db:down
 ```
 
 ## How To Test Day 2 GraphQL
@@ -265,6 +334,36 @@ From another terminal:
 curl -X POST http://127.0.0.1:8000/graphql -H "Content-Type: application/json" -d '{"query":"{ allArtists { id name genre location } }"}'
 ```
 
+If the browser previously showed `403 Forbidden`, stop and restart the Django server after pulling this change. Both `/graphql` and `/graphql/` now accept the frontend JSON POST request.
+
+## API Tests
+
+Run the Django unit tests:
+
+```powershell
+cd apps/api
+venv-underground\Scripts\python.exe manage.py test
+```
+
+The tests cover `allArtists`, `artistDetail`, and `tracksByGenre` against an isolated test database.
+
+They also cover creator sign-up, sign-in, anonymous upload rejection, and authenticated poetry upload.
+
+Run the same checks through the workspace:
+
+```powershell
+npm run test
+```
+
+## What Is Implemented
+
+- Day 3: shared `ArtistCard` and `GenreBadge` components with Tailwind setup.
+- Day 4: typed GraphQL client and catalog query in the Vite frontend. The Vite app uses `fetch` because this workspace is not a Nuxt app and therefore does not use `@nuxtjs/apollo`.
+- Day 5: artist discovery page with search and genre filtering.
+- Day 6: media URL support, HTML5 audio player, track list, and track selection.
+- Day 7: Turbo test task, Docker Compose Postgres service, API checks, and completed runbook.
+- The shared `Page` component is synchronous, so Vue no longer reports an async setup/Suspense warning in the docs app.
+
 ## Working With the Repo
 
 - Put backend changes in `apps/api`.
@@ -289,8 +388,4 @@ If VS Code shows import warnings for Django or Graphene, use the API interpreter
 
 ## What To Do Next
 
-The next planned step is Day 4:
-
-- install and configure Apollo client in frontend app
-- add frontend GraphQL query files
-- connect discovery UI to live endpoint `http://localhost:8000/graphql`
+The next production hardening steps are authentication, PostgreSQL settings in Django, upload validation, and deployment configuration.
