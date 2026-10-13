@@ -2,7 +2,7 @@
 
 This repository is a Turborepo-based full stack app for discovering underground musicians.
 
-The project is split into a Vue/Nuxt frontend, a Django GraphQL API, and shared packages used by both. Day 1 and Day 2 backend milestones are complete.
+The project is split into a Vue/Nuxt frontend, a Django GraphQL API, and shared packages used by both. Day 1, Day 2, and Day 3 milestones are complete.
 
 ## Tech Stack
 
@@ -60,6 +60,29 @@ Implemented GraphQL queries:
 - `allArtists`
 - `artistDetail(id)`
 - `tracksByGenre(genre)`
+
+## Current UI Package State (Day 3)
+
+The shared `packages/ui` package now includes:
+
+- `artist-card.vue`
+- `genre-badge.vue`
+- exports in `packages/ui/index.ts`
+- Tailwind setup in `packages/ui/tailwind.config.cjs` and `packages/ui/postcss.config.cjs`
+- shared Tailwind entry CSS in `packages/ui/src/tailwind.css`
+
+Use in a consumer app:
+
+```ts
+import { ArtistCard, GenreBadge } from "ui";
+```
+
+Tailwind build helpers in `packages/ui`:
+
+```powershell
+npm run tailwind:build
+npm run tailwind:watch
+```
 
 ## Local Setup
 
@@ -266,10 +289,8 @@ If VS Code shows import warnings for Django or Graphene, use the API interpreter
 
 ## What To Do Next
 
-The next planned step is Day 3:
+The next planned step is Day 4:
 
-- create shared UI components in `packages/ui`
-- build `ArtistCard.vue` and `GenreBadge.vue`
-- export components via `packages/ui/index.ts`
-
-After that, connect these components to live GraphQL data in the frontend.
+- install and configure Apollo client in frontend app
+- add frontend GraphQL query files
+- connect discovery UI to live endpoint `http://localhost:8000/graphql`

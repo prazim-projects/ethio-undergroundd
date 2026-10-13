@@ -6,6 +6,8 @@
     "dev": "venv-underground\\Scripts\\python.exe manage.py runserver 8000",
     "migrate": "venv-underground\\Scripts\\python.exe manage.py migrate",
     "makemigrations": "venv-underground\\Scripts\\python.exe manage.py makemigrations",
-    "lint": "flake8 ."
+    "check": "venv-underground\\Scripts\\python.exe manage.py check",
+    "test": "venv-underground\\Scripts\\python.exe manage.py test",
+    "lint": "venv-underground\\Scripts\\python.exe manage.py check"
   }
 }
