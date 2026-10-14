@@ -47,3 +47,4 @@ venv/
 apps/api/venv-underground/
 apps/api/tracks/
 apps/api/covers/
+apps/api/media/*
