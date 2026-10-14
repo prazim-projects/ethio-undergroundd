@@ -72,7 +72,7 @@ def sign_up(request):
     if password != confirm_password:
         return JsonResponse({"error": "Passwords do not match"}, status=400)
     if profile_type not in VALID_PROFILE_TYPES:
-        return JsonResponse({"error": "Choose regular user or artist / creator"}, status=400)
+        return JsonResponse({"error": "Choose regular user or creator"}, status=400)
 
     User = get_user_model()
     if User.objects.filter(username__iexact=username).exists():
@@ -235,7 +235,7 @@ def profile_detail(request):
     if not display_name:
         return JsonResponse({"error": "Display name is required"}, status=400)
     if profile_type not in VALID_PROFILE_TYPES:
-        return JsonResponse({"error": "Choose regular user or artist / creator"}, status=400)
+        return JsonResponse({"error": "Choose regular user or creator"}, status=400)
 
     avatar = request.FILES.get("avatar")
     if avatar:

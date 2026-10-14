@@ -12,18 +12,18 @@ from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework.authtoken.models import Token
 
-from .models import CreativeWork, CreatorProfile, Track
+from .models import CreativeWork, CreatorProfile
 
 MAX_UPLOAD_SIZE = 30 * 1024 * 1024
 MAX_AVATAR_SIZE = 4 * 1024 * 1024
 BLOCKED_EXTENSIONS = {".bat", ".cmd", ".com", ".dll", ".exe", ".hta", ".html", ".js", ".jar", ".php", ".ps1", ".sh", ".svg", ".vbs"}
 WORK_UPLOAD_RULES = {
     "music": {"ext": {".mp3", ".m4a", ".aac", ".ogg", ".wav"}, "mime": {"audio/mpeg", "audio/mp4", "audio/aac", "audio/ogg", "audio/wav", "audio/x-wav"}},
-    "photography": {"ext": {".jpg", ".jpeg", ".png", ".webp"}, "mime": {"image/jpeg", "image/png", "image/webp"}},
-    "visual_art": {"ext": {".jpg", ".jpeg", ".png", ".webp", ".pdf"}, "mime": {"image/jpeg", "image/png", "image/webp", "application/pdf"}},
+    "photography": {"ext": {".gif", ".jpg", ".jpeg", ".png", ".webp"}, "mime": {"image/gif", "image/jpeg", "image/png", "image/webp"}},
+    "visual_art": {"ext": {".gif", ".jpg", ".jpeg", ".png", ".webp", ".pdf"}, "mime": {"image/gif", "image/jpeg", "image/png", "image/webp", "application/pdf"}},
     "videography": {"ext": {".mp4", ".mov", ".webm"}, "mime": {"video/mp4", "video/quicktime", "video/webm"}},
     "poetry": {"ext": {".txt", ".pdf"}, "mime": {"text/plain", "application/pdf"}},
-    "other": {"ext": {".jpg", ".jpeg", ".png", ".webp", ".pdf", ".txt", ".mp3", ".mp4"}, "mime": {"image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain", "audio/mpeg", "video/mp4"}},
+    "other": {"ext": {".gif", ".jpg", ".jpeg", ".png", ".webp", ".pdf", ".txt", ".mp3", ".mp4"}, "mime": {"image/gif", "image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain", "audio/mpeg", "video/mp4"}},
 }
 AVATAR_RULE = {"ext": {".jpg", ".jpeg", ".png", ".webp"}, "mime": {"image/jpeg", "image/png", "image/webp"}}
 
@@ -115,7 +115,7 @@ def upload_work(request):
         return JsonResponse({"error": upload_error}, status=400)
     profile = _creator_profile_for_user(user)
     if profile.profile_type != CreatorProfile.ProfileType.CREATOR:
-        return JsonResponse({"error": "Only artist / creator accounts can publish work"}, status=403)
+        return JsonResponse({"error": "Only creator accounts can publish work"}, status=403)
     is_payable = request.POST.get("isPayable", "false").lower() == "true"
     try:
         price_etb = Decimal(request.POST.get("priceEtb", "0") or "0")
@@ -155,7 +155,7 @@ def my_works(request):
         return JsonResponse({"error": str(error)}, status=401)
     profile = _creator_profile_for_user(user)
     if profile.profile_type != CreatorProfile.ProfileType.CREATOR:
-        return JsonResponse({"error": "Only artist / creator accounts can manage creations"}, status=403)
+        return JsonResponse({"error": "Only creator accounts can manage creations"}, status=403)
     works = CreativeWork.objects.filter(creator=profile).order_by("-created_at")
     return JsonResponse({"works": [_work_payload(work) for work in works]})
 
@@ -193,42 +193,6 @@ def update_work_settings(request, work_id):
     work.price_etb = price_etb if work.is_payable else 0
     work.save(update_fields=["title", "description", "published", "is_payable", "price_etb", "updated_at"])
     return JsonResponse({"work": _work_payload(work)})
-
-
-def _track_file_response(track_id, as_attachment):
-    track = Track.objects.filter(pk=track_id).first()
-    if track is None or not track.audio_file:
-        return JsonResponse({"error": "Track audio was not found"}, status=404)
-    try:
-        handle = track.audio_file.open("rb")
-    except FileNotFoundError:
-        return JsonResponse({"error": "Track file was not found"}, status=404)
-    filename = track.audio_file.name.rsplit("/", 1)[-1]
-    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
-    return FileResponse(handle, as_attachment=as_attachment, filename=filename, content_type=content_type)
-
-
-def stream_track(request, track_id):
-    if request.method != "GET":
-        return JsonResponse({"error": "GET required"}, status=405)
-    return _track_file_response(track_id, as_attachment=False)
-
-
-def record_track_play(request, track_id):
-    if request.method != "POST":
-        return JsonResponse({"error": "POST required"}, status=405)
-    updated = Track.objects.filter(pk=track_id).update(play_count=F("play_count") + 1)
-    if not updated:
-        return JsonResponse({"error": "Track was not found"}, status=404)
-    track = Track.objects.get(pk=track_id)
-    return JsonResponse({"playCount": track.play_count, "downloadCount": track.download_count})
-
-
-def download_track(request, track_id):
-    if request.method != "GET":
-        return JsonResponse({"error": "GET required"}, status=405)
-    Track.objects.filter(pk=track_id).update(download_count=F("download_count") + 1)
-    return _track_file_response(track_id, as_attachment=True)
 
 
 def _work_file_response(work_id, as_attachment):

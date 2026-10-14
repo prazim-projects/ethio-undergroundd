@@ -1,63 +1,67 @@
 import json
-from datetime import date
 from pathlib import Path
+from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.test import TestCase
 
-from catalog.models import Album, Artist, CreativeWork, CreatorProfile, Track
+from catalog.models import CreativeWork, CreatorProfile
 from schema import schema
 
 
 class CatalogGraphQLTests(TestCase):
 	def setUp(self):
-		artist = Artist.objects.create(
-			name="Night Echo",
-			genre="Indie",
+		user = User.objects.create_user(username="night-echo", email="night@example.com", password="pass")
+		self.profile = CreatorProfile.objects.create(
+			user=user,
+			display_name="Night Echo",
+			profile_type=CreatorProfile.ProfileType.CREATOR,
 			bio="Live from basements",
 			location="Addis Ababa",
 		)
-		album = Album.objects.create(
-			artist=artist,
-			title="Street Signals",
-			release_date=date(2025, 1, 10),
+		CreativeWork.objects.create(
+			creator=self.profile,
+			title="Static Bloom",
+			work_type=CreativeWork.WorkType.MUSIC,
+			description="Indie signal",
+			file=SimpleUploadedFile("static-bloom.mp3", b"audio bytes", content_type="audio/mpeg"),
+			play_count=7,
 		)
-		Track.objects.create(album=album, title="Static Bloom")
 
-	def test_all_artists_returns_catalog_artists(self):
-		result = schema.execute("{ allArtists { name genre location } }")
-
-		self.assertIsNone(result.errors)
-		if result.data is None:
-			self.fail("GraphQL returned no data")
-		self.assertEqual(result.data["allArtists"][0]["name"], "Night Echo")
-
-	def test_artist_detail_returns_one_artist(self):
-		artist = Artist.objects.get(name="Night Echo")
-		result = schema.execute(f'{{ artistDetail(id: "{artist.pk}") {{ name }} }}')
+	def test_popular_creatives_returns_creator_profiles(self):
+		result = schema.execute("{ popularCreatives { displayName location } }")
 
 		self.assertIsNone(result.errors)
 		if result.data is None:
 			self.fail("GraphQL returned no data")
-		self.assertEqual(result.data["artistDetail"]["name"], "Night Echo")
+		self.assertEqual(result.data["popularCreatives"][0]["displayName"], "Night Echo")
 
-	def test_tracks_by_genre_returns_matching_tracks(self):
-		result = schema.execute('{ tracksByGenre(genre: "Indie") { title } }')
+	def test_get_creator_returns_one_creator(self):
+		result = schema.execute(f'{{ getCreator(publicId: "{self.profile.public_id}") {{ displayName works {{ title }} }} }}')
 
 		self.assertIsNone(result.errors)
 		if result.data is None:
 			self.fail("GraphQL returned no data")
-		self.assertEqual(result.data["tracksByGenre"][0]["title"], "Static Bloom")
+		self.assertEqual(result.data["getCreator"]["displayName"], "Night Echo")
+		self.assertEqual(result.data["getCreator"]["works"][0]["title"], "Static Bloom")
+
+	def test_load_popular_works_orders_by_views(self):
+		result = schema.execute("{ loadPopularWorks { title playCount } }")
+
+		self.assertIsNone(result.errors)
+		if result.data is None:
+			self.fail("GraphQL returned no data")
+		self.assertEqual(result.data["loadPopularWorks"][0]["title"], "Static Bloom")
 
 	def test_graphql_endpoint_accepts_json_post_without_csrf_token(self):
 		response = self.client.post(
 			"/graphql",
-			data='{"query":"{ allArtists { name } }"}',
+			data='{"query":"{ popularCreatives { displayName } }"}',
 			content_type="application/json",
 		)
 
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(response.json()["data"]["allArtists"][0]["name"], "Night Echo")
+		self.assertEqual(response.json()["data"]["popularCreatives"][0]["displayName"], "Night Echo")
 
 
 class CreatorAuthAndUploadTests(TestCase):
@@ -190,17 +194,71 @@ class CreatorAuthAndUploadTests(TestCase):
 		self.assertEqual(response.status_code, 403)
 
 	@override_settings(MEDIA_ROOT=Path(__file__).resolve().parent / "test-media")
-	def test_track_download_uses_attachment_response(self):
-		artist = Artist.objects.create(name="Night Echo", genre="Indie", location="Addis Ababa")
-		album = Album.objects.create(artist=artist, title="Street Signals", release_date=date(2025, 1, 10))
-		track = Track.objects.create(
-			album=album,
+	def test_work_download_uses_attachment_response(self):
+		user = User.objects.create_user(username="download-creator", email="download@example.com", password="pass")
+		profile = CreatorProfile.objects.create(user=user, display_name="Download Creator", profile_type=CreatorProfile.ProfileType.CREATOR)
+		work = CreativeWork.objects.create(
+			creator=profile,
 			title="Static Bloom",
-			audio_file=SimpleUploadedFile("static-bloom.mp3", b"audio bytes", content_type="audio/mpeg"),
+			work_type=CreativeWork.WorkType.MUSIC,
+			file=SimpleUploadedFile("static-bloom.mp3", b"audio bytes", content_type="audio/mpeg"),
 		)
 
-		response = self.client.get(f"/tracks/{track.pk}/download/")
+		response = self.client.get(f"/works/{work.pk}/download/")
 
 		self.assertEqual(response.status_code, 200)
 		self.assertIn("attachment", response.headers["Content-Disposition"])
 		self.assertIn("static-bloom.mp3", response.headers["Content-Disposition"])
+
+	@override_settings(MEDIA_ROOT=Path(__file__).resolve().parent / "test-media")
+	def test_work_stream_opens_text_inline_with_its_content_type(self):
+		user = User.objects.create_user(username="stream-creator", email="stream@example.com", password="pass")
+		profile = CreatorProfile.objects.create(user=user, display_name="Stream Creator", profile_type=CreatorProfile.ProfileType.CREATOR)
+		work = CreativeWork.objects.create(
+			creator=profile,
+			title="Small Weather",
+			work_type=CreativeWork.WorkType.POETRY,
+			file=SimpleUploadedFile("small-weather.txt", b"A small poem", content_type="text/plain"),
+		)
+
+		response = self.client.get(f"/works/{work.pk}/stream/")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.headers["Content-Type"], "text/plain")
+		self.assertIn("inline", response.headers["Content-Disposition"])
+
+	@override_settings(MEDIA_ROOT=Path(__file__).resolve().parent / "test-media")
+	def test_work_stream_opens_pdf_inline_with_its_content_type(self):
+		user = User.objects.create_user(username="pdf-creator", email="pdf@example.com", password="pass")
+		profile = CreatorProfile.objects.create(user=user, display_name="PDF Creator", profile_type=CreatorProfile.ProfileType.CREATOR)
+		work = CreativeWork.objects.create(
+			creator=profile,
+			title="Portfolio",
+			work_type=CreativeWork.WorkType.VISUAL_ART,
+			file=SimpleUploadedFile("portfolio.pdf", b"%PDF-1.4", content_type="application/pdf"),
+		)
+
+		response = self.client.get(f"/works/{work.pk}/stream/")
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.headers["Content-Type"], "application/pdf")
+		self.assertIn("inline", response.headers["Content-Disposition"])
+
+	def test_record_work_play_increments_and_returns_the_count(self):
+		user = User.objects.create_user(username="count-creator", email="count@example.com", password="pass")
+		profile = CreatorProfile.objects.create(user=user, display_name="Count Creator", profile_type=CreatorProfile.ProfileType.CREATOR)
+		work = CreativeWork.objects.create(
+			creator=profile,
+			title="Counted Work",
+			work_type=CreativeWork.WorkType.OTHER,
+			file=SimpleUploadedFile("counted.txt", b"Count me", content_type="text/plain"),
+		)
+
+		first_response = self.client.post(f"/works/{work.pk}/play/")
+		second_response = self.client.post(f"/works/{work.pk}/play/")
+
+		self.assertEqual(first_response.status_code, 200)
+		self.assertEqual(first_response.json()["playCount"], 1)
+		self.assertEqual(second_response.json()["playCount"], 2)
+		work.refresh_from_db()
+		self.assertEqual(work.play_count, 2)
