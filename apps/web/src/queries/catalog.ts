@@ -1,71 +1,51 @@
+const CREATOR_FIELDS = `
+  id
+  publicId
+  username
+  displayName
+  profileType
+  bio
+  location
+  disciplines
+  avatar
+`;
+
+const WORK_FIELDS = `
+  id
+  title
+  workType
+  description
+  file
+  thumbnail
+  isPayable
+  priceEtb
+  playCount
+  downloadCount
+  creator {
+    ${CREATOR_FIELDS}
+  }
+`;
+
 export const CATALOG_QUERY = `
-  query Catalog($genre: String) {
-    allArtists {
-      id
-      publicId
-      name
-      genre
-      bio
-      location
-      albums {
-        id
-        title
-        releaseDate
-        coverImage
-        tracks {
-          id
-          title
-          audioFile
-          playCount
-          downloadCount
-        }
-      }
+  query PopularCatalog($query: String, $workType: String, $creativeLimit: Int, $workLimit: Int, $searchLimit: Int) {
+    popularCreatives(limit: $creativeLimit) {
+      ${CREATOR_FIELDS}
     }
-    allProfiles {
-      id
-      publicId
-      username
-      displayName
-      profileType
-      bio
-      location
-      disciplines
-      avatar
+    loadPopularWorks(limit: $workLimit) {
+      ${WORK_FIELDS}
     }
-    tracksByGenre(genre: $genre) {
-      id
-      title
-      audioFile
-      playCount
-      downloadCount
-      album {
-        title
-        artist {
-          name
-        }
-      }
+    searchWorks(query: $query, workType: $workType, limit: $searchLimit) {
+      ${WORK_FIELDS}
     }
-    allWorks {
-      id
-      title
-      workType
-      description
-      file
-      thumbnail
-      isPayable
-      priceEtb
-      playCount
-      downloadCount
-      creator {
-        id
-        publicId
-        username
-        displayName
-        profileType
-        bio
-        location
-        disciplines
-        avatar
+  }
+`;
+
+export const GET_CREATOR_QUERY = `
+  query getCreatorQuery($publicId: String!) {
+    getCreator(publicId: $publicId) {
+      ${CREATOR_FIELDS}
+      works {
+        ${WORK_FIELDS}
       }
     }
   }

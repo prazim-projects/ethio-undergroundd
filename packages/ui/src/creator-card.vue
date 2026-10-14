@@ -35,7 +35,7 @@
 <script setup lang="ts">
 import GenreBadge from "./genre-badge.vue";
 
-interface ArtistCardProps {
+interface CreatorCardProps {
   name: string;
   genre: string;
   location: string;
@@ -43,5 +43,5 @@ interface ArtistCardProps {
   bio?: string;
 }
 
-defineProps<ArtistCardProps>();
+defineProps<CreatorCardProps>();
 </script>

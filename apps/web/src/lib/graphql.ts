@@ -31,16 +31,6 @@ export function mediaUrl(path?: string | null): string | undefined {
   return `${API_ORIGIN}/${path.startsWith("media/") ? path : `media/${path}`}`;
 }
 
-export function trackDownloadUrl(trackId?: string | number | null): string | undefined {
-  if (!trackId) return undefined;
-  return `${API_ORIGIN}/tracks/${trackId}/download/`;
-}
-
-export function trackStreamUrl(trackId?: string | number | null): string | undefined {
-  if (!trackId) return undefined;
-  return `${API_ORIGIN}/tracks/${trackId}/stream/`;
-}
-
 export function workDownloadUrl(workId?: string | number | null): string | undefined {
   if (!workId) return undefined;
   return `${API_ORIGIN}/works/${workId}/download/`;
@@ -51,7 +41,7 @@ export function workStreamUrl(workId?: string | number | null): string | undefin
   return `${API_ORIGIN}/works/${workId}/stream/`;
 }
 
-export function artistProfilePath(publicId: string): string {
+export function creatorProfilePath(publicId: string): string {
   return `/creators/${encodeURIComponent(publicId)}`;
 }
 
@@ -64,10 +54,6 @@ async function postEmpty<T>(path: string) {
 
 export function recordWorkPlay(workId: string | number) {
   return postEmpty<{ playCount: number; downloadCount: number }>(`/works/${workId}/play/`);
-}
-
-export function recordTrackPlay(trackId: string | number) {
-  return postEmpty<{ playCount: number; downloadCount: number }>(`/tracks/${trackId}/play/`);
 }
 
 export function initiateTelebirrPayment(workId: string | number) {

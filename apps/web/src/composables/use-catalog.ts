@@ -1,33 +1,6 @@
 import { ref } from "vue";
-import { CATALOG_QUERY } from "../queries/catalog";
+import { CATALOG_QUERY, GET_CREATOR_QUERY } from "../queries/catalog";
 import { queryGraphQL } from "../lib/graphql";
-
-export interface CatalogArtist {
-  id: string;
-  publicId: string;
-  name: string;
-  genre: string;
-  bio: string;
-  location: string;
-  albums: CatalogAlbum[];
-}
-
-export interface CatalogAlbum {
-  id: string;
-  title: string;
-  releaseDate: string;
-  coverImage?: string | null;
-  tracks: CatalogTrack[];
-}
-
-export interface CatalogTrack {
-  id: string;
-  title: string;
-  audioFile?: string | null;
-  playCount: number;
-  downloadCount: number;
-  album: { title: string; artist: { name: string } };
-}
 
 export interface CreativeWork {
   id: string;
@@ -55,30 +28,40 @@ export interface CatalogProfile {
   avatar?: string | null;
 }
 
+export interface CreatorDetail extends CatalogProfile {
+  works: CreativeWork[];
+}
+
 interface CatalogResponse {
-  allArtists: CatalogArtist[];
-  allProfiles: CatalogProfile[];
-  tracksByGenre: CatalogTrack[];
-  allWorks: CreativeWork[];
+  popularCreatives: CatalogProfile[];
+  loadPopularWorks: CreativeWork[];
+  searchWorks: CreativeWork[];
+}
+
+interface CreatorResponse {
+  getCreator: CreatorDetail | null;
 }
 
 export function useCatalog() {
-  const artists = ref<CatalogArtist[]>([]);
   const profiles = ref<CatalogProfile[]>([]);
-  const tracks = ref<CatalogTrack[]>([]);
   const loading = ref(false);
   const error = ref("");
   const works = ref<CreativeWork[]>([]);
+  const selectedCreator = ref<CreatorDetail | null>(null);
 
-  async function load(genre?: string) {
+  async function load(query = "", workType = "") {
     loading.value = true;
     error.value = "";
     try {
-      const result = await queryGraphQL<CatalogResponse>(CATALOG_QUERY, { genre: genre || null });
-      artists.value = result.allArtists;
-      profiles.value = result.allProfiles;
-      tracks.value = result.tracksByGenre;
-      works.value = result.allWorks;
+      const result = await queryGraphQL<CatalogResponse>(CATALOG_QUERY, {
+        query: query || null,
+        workType: workType || null,
+        creativeLimit: 3,
+        workLimit: 4,
+        searchLimit: 60,
+      });
+      profiles.value = mergeById(result.popularCreatives, selectedCreator.value ? [selectedCreator.value] : []);
+      works.value = mergeById(query || workType ? result.searchWorks : result.loadPopularWorks, selectedCreator.value?.works ?? []);
     } catch (requestError) {
       error.value = requestError instanceof Error ? requestError.message : "Unable to load catalog";
     } finally {
@@ -86,5 +69,28 @@ export function useCatalog() {
     }
   }
 
-  return { artists, profiles, tracks, works, loading, error, load };
+  async function loadCreator(publicId: string) {
+    loading.value = true;
+    error.value = "";
+    try {
+      const result = await queryGraphQL<CreatorResponse>(GET_CREATOR_QUERY, { publicId });
+      selectedCreator.value = result.getCreator;
+      if (result.getCreator) {
+        profiles.value = mergeById(profiles.value, [result.getCreator]);
+        works.value = mergeById(works.value, result.getCreator.works);
+      }
+    } catch (requestError) {
+      error.value = requestError instanceof Error ? requestError.message : "Unable to load creator";
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  return { profiles, works, selectedCreator, loading, error, load, loadCreator };
+}
+
+function mergeById<T extends { id: string }>(current: T[], incoming: T[]) {
+  const items = new Map(current.map((item) => [item.id, item]));
+  for (const item of incoming) items.set(item.id, item);
+  return [...items.values()];
 }

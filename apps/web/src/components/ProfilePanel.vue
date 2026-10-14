@@ -7,7 +7,7 @@
         <div v-else class="profile-avatar profile-avatar--empty">{{ initials }}</div>
         <div>
           <h2>{{ user.displayName }}</h2>
-          <p class="page-panel__intro">@{{ user.username }} / {{ user.profileType === "creator" ? "artist / creator" : "regular user" }}</p>
+          <p class="page-panel__intro">@{{ user.username }} / {{ user.profileType === "creator" ? "creator" : "regular user" }}</p>
         </div>
       </div>
 
@@ -15,7 +15,7 @@
         <input v-model="displayName" required placeholder="Display name" aria-label="Display name" />
         <select v-model="profileType" aria-label="Profile type">
           <option value="listener">Regular user</option>
-          <option value="creator">Artist / creator</option>
+          <option value="creator">Creator</option>
         </select>
         <input v-model="location" placeholder="Location" aria-label="Location" />
         <input v-model="disciplines" placeholder="Disciplines, separated by commas" aria-label="Disciplines" />

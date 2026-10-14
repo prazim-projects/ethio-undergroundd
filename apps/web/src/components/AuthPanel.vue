@@ -9,7 +9,7 @@
     </div>
 
     <template v-if="isAuthenticated">
-      <p class="auth-panel__signed-in">Signed in as <strong>{{ user?.displayName }}</strong> <span>({{ user?.profileType === "creator" ? "artist / creator" : "regular user" }})</span></p>
+      <p class="auth-panel__signed-in">Signed in as <strong>{{ user?.displayName }}</strong> <span>({{ user?.profileType === "creator" ? "creator" : "regular user" }})</span></p>
     </template>
     <template v-else>
       <div class="auth-panel__tabs" role="tablist">
@@ -25,7 +25,7 @@
         <input v-if="mode === 'sign-up'" v-model="confirmPassword" required type="password" minlength="8" placeholder="Confirm password" aria-label="Confirm password" />
         <select v-if="mode === 'sign-up'" v-model="profileType" aria-label="Account type">
           <option value="listener">Regular user</option>
-          <option value="creator">Artist / creator</option>
+          <option value="creator">Creator</option>
         </select>
         <p v-if="passwordMismatch" class="form-error">Passwords must match.</p>
         <button class="primary-button" type="submit" :disabled="loading || passwordMismatch">{{ loading ? "Working..." : mode === "sign-in" ? "Sign in" : "Create account" }}</button>
