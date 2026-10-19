@@ -115,7 +115,7 @@ function previewUrl(work: ManagedWork) {
 }
 
 function isImageWork(work: ManagedWork) {
-  return ["photography", "visual_art"].includes(work.workType) || /\.(gif|png|jpe?g|webp|avif)$/i.test(work.file);
+  return /\.(gif|png|jpe?g|webp|avif)$/i.test(work.file);
 }
 
 function popularityScore(work: ManagedWork) {

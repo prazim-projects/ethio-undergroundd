@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { CATALOG_QUERY, GET_CREATOR_QUERY } from "../queries/catalog";
+import { CATALOG_QUERY, GET_CREATOR_QUERY, GET_WORK_QUERY } from "../queries/catalog";
 import { queryGraphQL } from "../lib/graphql";
 
 export interface CreativeWork {
@@ -48,45 +48,70 @@ export function useCatalog() {
   const error = ref("");
   const works = ref<CreativeWork[]>([]);
   const selectedCreator = ref<CreatorDetail | null>(null);
+  const selectedWork = ref<CreativeWork | null>(null);
+  let requestVersion = 0;
 
   async function load(query = "", workType = "") {
+    const version = ++requestVersion;
     loading.value = true;
     error.value = "";
     try {
       const result = await queryGraphQL<CatalogResponse>(CATALOG_QUERY, {
         query: query || null,
         workType: workType || null,
-        creativeLimit: 3,
-        workLimit: 4,
+        creativeLimit: 12,
+        workLimit: 12,
         searchLimit: 60,
       });
-      profiles.value = mergeById(result.popularCreatives, selectedCreator.value ? [selectedCreator.value] : []);
-      works.value = mergeById(query || workType ? result.searchWorks : result.loadPopularWorks, selectedCreator.value?.works ?? []);
+      if (version !== requestVersion) return;
+      profiles.value = result.popularCreatives;
+      works.value = result.searchWorks;
     } catch (requestError) {
-      error.value = requestError instanceof Error ? requestError.message : "Unable to load catalog";
+      if (version === requestVersion) error.value = requestError instanceof Error ? requestError.message : "Unable to load catalog";
     } finally {
-      loading.value = false;
+      if (version === requestVersion) loading.value = false;
     }
   }
 
   async function loadCreator(publicId: string) {
+    const version = ++requestVersion;
     loading.value = true;
     error.value = "";
     try {
       const result = await queryGraphQL<CreatorResponse>(GET_CREATOR_QUERY, { publicId });
+      if (version !== requestVersion) return;
       selectedCreator.value = result.getCreator;
       if (result.getCreator) {
         profiles.value = mergeById(profiles.value, [result.getCreator]);
         works.value = mergeById(works.value, result.getCreator.works);
       }
     } catch (requestError) {
-      error.value = requestError instanceof Error ? requestError.message : "Unable to load creator";
+      if (version === requestVersion) error.value = requestError instanceof Error ? requestError.message : "Unable to load creator";
     } finally {
-      loading.value = false;
+      if (version === requestVersion) loading.value = false;
     }
   }
 
-  return { profiles, works, selectedCreator, loading, error, load, loadCreator };
+  async function loadWork(id: string) {
+    const version = ++requestVersion;
+    loading.value = true; error.value = ""; selectedWork.value = null;
+    try {
+      const result = await queryGraphQL<{ getWork: CreativeWork | null }>(GET_WORK_QUERY, { id });
+      if (version === requestVersion) selectedWork.value = result.getWork;
+    } catch (err) {
+      if (version === requestVersion) error.value = err instanceof Error ? err.message : "Unable to load work";
+    } finally { if (version === requestVersion) loading.value = false; }
+  }
+
+  function updateStats(id: string, stats: { playCount: number; downloadCount: number }) {
+    const items = [...works.value, ...(selectedCreator.value?.works ?? []), ...(selectedWork.value ? [selectedWork.value] : [])];
+    for (const item of items) if (item.id === id) {
+      item.playCount = Math.max(item.playCount, stats.playCount);
+      item.downloadCount = Math.max(item.downloadCount, stats.downloadCount);
+    }
+  }
+
+  return { profiles, works, selectedCreator, selectedWork, loading, error, load, loadCreator, loadWork, updateStats };
 }
 
 function mergeById<T extends { id: string }>(current: T[], incoming: T[]) {

@@ -2,19 +2,32 @@ import uuid
 
 import graphene
 from graphene_django import DjangoObjectType
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch, Q, Sum
+from django.db.models.functions import Coalesce
 from catalog.models import CreativeWork, CreatorProfile
+
+
+def bounded_limit(value, default):
+    return max(1, min(value if value is not None else default, 100))
+
+
+def public_works():
+    return CreativeWork.objects.select_related("creator", "creator__user").filter(published=True)
 
 
 class CreatorProfileType(DjangoObjectType):
     username = graphene.String()
+    works = graphene.List(lambda: CreativeWorkType)
 
     class Meta:
         model = CreatorProfile
-        fields = "__all__"
+        fields = ("id", "public_id", "display_name", "profile_type", "bio", "location", "disciplines", "avatar", "works")
 
     def resolve_username(self, info):
         return self.user.username
+
+    def resolve_works(self, info):
+        return self.works.filter(published=True).select_related("creator", "creator__user")[:100]
 
 
 class CreativeWorkType(DjangoObjectType):
@@ -29,22 +42,21 @@ class Query(graphene.ObjectType):
     search_works = graphene.List(CreativeWorkType, query=graphene.String(), work_type=graphene.String(), limit=graphene.Int())
     get_creator = graphene.Field(CreatorProfileType, public_id=graphene.String(required=True))
     current_creator = graphene.Field(CreatorProfileType)
+    get_work = graphene.Field(CreativeWorkType, id=graphene.ID(required=True))
+
+    def resolve_get_work(self, info, id):
+        return public_works().filter(pk=id).first() if str(id).isdigit() else None
 
     def resolve_popular_creatives(self, info, limit=3):
         profiles = CreatorProfile.objects.filter(
             Q(profile_type=CreatorProfile.ProfileType.CREATOR) | Q(works__published=True)
-        ).distinct().prefetch_related(
-            Prefetch("works", queryset=CreativeWork.objects.filter(published=True))
+        ).select_related("user").annotate(
+            popularity=Coalesce(Sum("works__play_count", filter=Q(works__published=True)), 0)
         )
-        return sorted(
-            profiles,
-            key=lambda profile: sum(work.play_count for work in profile.works.all()),
-            reverse=True,
-        )[: limit or 3]
+        return profiles.order_by("-popularity", "id")[:bounded_limit(limit, 3)]
 
     def resolve_load_popular_works(self, info, limit=4):
-        works = CreativeWork.objects.select_related("creator", "creator__user").filter(published=True)
-        return sorted(works, key=lambda work: work.play_count, reverse=True)[: limit or 4]
+        return public_works().order_by("-play_count", "-created_at")[:bounded_limit(limit, 4)]
 
     def resolve_search_works(self, info, query=None, work_type=None, limit=50):
         works = CreativeWork.objects.select_related("creator", "creator__user").filter(published=True)
@@ -57,7 +69,7 @@ class Query(graphene.ObjectType):
                 | Q(creator__display_name__icontains=query)
                 | Q(creator__location__icontains=query)
             )
-        return works.order_by("-play_count", "-download_count", "-created_at")[: limit or 50]
+        return works.order_by("-play_count", "-download_count", "-created_at")[:bounded_limit(limit, 50)]
 
     def resolve_get_creator(self, info, public_id):
         lookup = str(public_id).removeprefix("profile-")

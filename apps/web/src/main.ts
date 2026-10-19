@@ -1,11 +1,10 @@
 import { createApp } from "vue";
+import { createRouter, createWebHistory } from "vue-router";
 import App from "./app.vue";
 import "./styles.css";
 
-createApp(App).mount("#app");
-
-if (import.meta.env.MODE === "production" && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js");
-  });
-}
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [{ path: "/:pathMatch(.*)*", component: App }],
+});
+createApp(App).use(router).mount("#app");

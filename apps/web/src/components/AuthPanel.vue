@@ -12,9 +12,9 @@
       <p class="auth-panel__signed-in">Signed in as <strong>{{ user?.displayName }}</strong> <span>({{ user?.profileType === "creator" ? "creator" : "regular user" }})</span></p>
     </template>
     <template v-else>
-      <div class="auth-panel__tabs" role="tablist">
-        <button type="button" :class="{ active: mode === 'sign-in' }" @click="mode = 'sign-in'">Sign in</button>
-        <button type="button" :class="{ active: mode === 'sign-up' }" @click="mode = 'sign-up'">Create account</button>
+      <div class="auth-panel__tabs" aria-label="Account action">
+        <button type="button" :aria-pressed="mode === 'sign-in'" :class="{ active: mode === 'sign-in' }" @click="mode = 'sign-in'">Sign in</button>
+        <button type="button" :aria-pressed="mode === 'sign-up'" :class="{ active: mode === 'sign-up' }" @click="mode = 'sign-up'">Create account</button>
       </div>
       <form class="auth-panel__form" @submit.prevent="submit">
         <input v-if="mode === 'sign-up'" v-model="displayName" required placeholder="Display name" aria-label="Display name" />
@@ -32,7 +32,6 @@
       </form>
       <div class="auth-panel__divider"><span>or</span></div>
       <div ref="googleButton" class="google-button"></div>
-      <button v-if="!googleClientId" type="button" class="secondary-button" disabled>Continue with Google needs a client ID</button>
       <button type="button" class="secondary-button" @click="submitFayda" :disabled="loading">{{ loading ? "Working..." : "Continue with Fayda" }}</button>
       <p v-if="error" class="form-error">{{ error }}</p>
       <p class="auth-panel__fine-print">By joining, you agree to share your public creator profile and published work.</p>

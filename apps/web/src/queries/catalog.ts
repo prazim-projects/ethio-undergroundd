@@ -10,7 +10,7 @@ const CREATOR_FIELDS = `
   avatar
 `;
 
-const WORK_FIELDS = `
+export const WORK_FIELDS = `
   id
   title
   workType
@@ -25,6 +25,8 @@ const WORK_FIELDS = `
     ${CREATOR_FIELDS}
   }
 `;
+
+export const GET_WORK_QUERY = `query Work($id: ID!) { getWork(id: $id) { ${WORK_FIELDS} } }`;
 
 export const CATALOG_QUERY = `
   query PopularCatalog($query: String, $workType: String, $creativeLimit: Int, $workLimit: Int, $searchLimit: Int) {

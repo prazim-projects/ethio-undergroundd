@@ -1,0 +1,14 @@
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+const root = resolve(import.meta.dirname, '..');
+const cli = process.argv[2] || process.env.npm_execpath;
+if (!cli) throw new Error('Pass the npm-cli.js path or invoke through npm run audit:dependencies');
+const result = spawnSync(process.execPath, [cli, 'audit', '--json', '--workspace', 'apps/web', '--cache', '.tmp/npm-cache'], { cwd: root, encoding: 'utf8', timeout: 120000 });
+if (result.error) throw result.error;
+const report = JSON.parse(result.stdout);
+mkdirSync(resolve(root, '.tmp/audit'), { recursive: true });
+writeFileSync(resolve(root, '.tmp/audit/dependencies.json'), JSON.stringify(report, null, 2));
+console.log(JSON.stringify(report.metadata?.vulnerabilities || report.error, null, 2));
+for (const [name, item] of Object.entries(report.vulnerabilities || {})) console.log(name, item.severity, 'direct:', item.isDirect, 'fix:', JSON.stringify(item.fixAvailable));
+process.exitCode = result.status ?? 1;

@@ -24,6 +24,7 @@
         <input v-model="isPayable" type="checkbox" />
         <span>Make this work payable through Telebirr</span>
       </label>
+      <label class="file-picker"><span>Cover artwork (optional)</span><input type="file" accept="image/jpeg,image/png,image/webp" @change="cover = ($event.target as HTMLInputElement).files?.[0] ?? null" /></label>
       <input v-if="isPayable" v-model="priceEtb" required min="1" step="0.01" type="number" placeholder="Price in ETB" aria-label="Price in ETB" />
       <p class="upload-panel__intro">{{ uploadHint }}</p>
       <progress v-if="loading" class="upload-progress" :value="progress" max="100">{{ progress }}%</progress>
@@ -54,6 +55,7 @@ const title = ref("");
 const workType = ref("music");
 const description = ref("");
 const file = ref<File | null>(null);
+const cover = ref<File | null>(null);
 const isPayable = ref(false);
 const priceEtb = ref("");
 const loading = ref(false);
@@ -86,6 +88,7 @@ async function submit() {
   formData.append("workType", workType.value);
   formData.append("description", description.value);
   formData.append("file", file.value);
+  if (cover.value) formData.append("thumbnail", cover.value);
   formData.append("isPayable", String(isPayable.value));
   formData.append("priceEtb", isPayable.value ? priceEtb.value : "0");
   try {
@@ -94,6 +97,7 @@ async function submit() {
     title.value = "";
     description.value = "";
     file.value = null;
+    cover.value = null;
     isPayable.value = false;
     priceEtb.value = "";
     progress.value = 100;

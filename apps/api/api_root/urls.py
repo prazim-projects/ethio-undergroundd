@@ -23,9 +23,11 @@ from graphene_django.views import GraphQLView
 
 from catalog.auth import fayda_sign_in_callback, fayda_sign_in_start, google_sign_in, profile_detail, sign_in, sign_up
 from catalog.payments import initiate_telebirr_payment
-from catalog.uploads import download_work, my_works, record_work_play, stream_work, update_work_settings, upload_work
+from catalog.uploads import download_work, my_works, record_work_play, stream_work, update_work_settings, upload_work, public_media
+from graphene.validation import depth_limit_validator
+from graphql import specified_rules
 
-graphql_view = csrf_exempt(GraphQLView.as_view(graphiql=True))
+graphql_view = csrf_exempt(GraphQLView.as_view(graphiql=settings.DEBUG, validation_rules=(*specified_rules, depth_limit_validator(max_depth=4))))
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -47,4 +49,4 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, view=public_media, document_root=settings.MEDIA_ROOT)

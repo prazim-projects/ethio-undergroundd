@@ -60,8 +60,11 @@ export function initiateTelebirrPayment(workId: string | number) {
   return postEmpty<{ provider: "telebirr"; checkoutUrl: string; amount: string; currency: "ETB" }>(`/works/${workId}/pay/`);
 }
 
-export function startFaydaSignIn() {
-  return postEmpty<{ authorizationUrl: string }>("/auth/fayda/start/");
+export async function startFaydaSignIn() {
+  const response = await fetch(`${API_ORIGIN}/auth/fayda/start/`, { method: "POST", credentials: "include" });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error ?? "Sign in could not start");
+  return payload as { authorizationUrl: string };
 }
 
 export interface SessionUser {

@@ -9,6 +9,7 @@ from catalog.models import CreativeWork, CreatorProfile
 from schema import schema
 
 
+@override_settings(STORAGES={"default": {"BACKEND": "django.core.files.storage.InMemoryStorage"}})
 class CatalogGraphQLTests(TestCase):
 	def setUp(self):
 		user = User.objects.create_user(username="night-echo", email="night@example.com", password="pass")
@@ -64,6 +65,7 @@ class CatalogGraphQLTests(TestCase):
 		self.assertEqual(response.json()["data"]["popularCreatives"][0]["displayName"], "Night Echo")
 
 
+@override_settings(STORAGES={"default": {"BACKEND": "django.core.files.storage.InMemoryStorage"}})
 class CreatorAuthAndUploadTests(TestCase):
 	def test_creator_can_sign_up_and_sign_in(self):
 		signup = self.client.post(

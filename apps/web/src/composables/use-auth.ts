@@ -2,7 +2,11 @@ import { computed, ref } from "vue";
 import { signIn, signInWithGoogle, signUp, startFaydaSignIn, updateProfile, type SessionUser, type SignUpPayload } from "../lib/graphql";
 
 const token = ref(localStorage.getItem("underground_token") ?? "");
-const user = ref<SessionUser | null>(JSON.parse(localStorage.getItem("underground_user") ?? "null"));
+function storedUser(): SessionUser | null {
+  try { return JSON.parse(localStorage.getItem("underground_user") ?? "null"); }
+  catch { localStorage.removeItem("underground_user"); return null; }
+}
+const user = ref<SessionUser | null>(storedUser());
 
 export function useAuth() {
   const isAuthenticated = computed(() => Boolean(token.value));

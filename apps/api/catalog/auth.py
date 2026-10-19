@@ -163,7 +163,8 @@ def fayda_sign_in_callback(request):
         state = payload.get("state", state)
     if not code:
         return JsonResponse({"error": "Fayda authorization code is required"}, status=400)
-    if state and request.session.get("fayda_oauth_state") and state != request.session.get("fayda_oauth_state"):
+    expected_state = request.session.pop("fayda_oauth_state", "")
+    if not state or not expected_state or not secrets.compare_digest(state, expected_state):
         return JsonResponse({"error": "Fayda state did not match"}, status=400)
 
     try:
@@ -259,7 +260,7 @@ def profile_detail(request):
 def google_sign_in(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=405)
-    client_id = request.headers.get("X-Google-Client-Id")
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "").strip()
     if not client_id:
         return JsonResponse({"error": "Google OAuth is not configured"}, status=503)
     try:
@@ -273,7 +274,7 @@ def google_sign_in(request):
             claims = json.loads(response.read())
     except (KeyError, json.JSONDecodeError, HTTPError, URLError, TimeoutError):
         return JsonResponse({"error": "Google credential could not be verified"}, status=401)
-    if claims.get("aud") != client_id or not claims.get("email_verified"):
+    if claims.get("aud") != client_id or claims.get("email_verified") not in (True, "true"):
         return JsonResponse({"error": "Google credential is invalid"}, status=401)
 
     User = get_user_model()
