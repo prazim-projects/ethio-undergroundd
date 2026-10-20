@@ -1,0 +1,11 @@
+{
+  "rewrites": [{ "source": "/((?!downloads/|assets/|icons/|.*\\.).*)", "destination": "/index.html" }],
+  "headers": [
+    { "source": "/downloads/(.*).apk", "headers": [
+      { "key": "Content-Type", "value": "application/vnd.android.package-archive" },
+      { "key": "Content-Disposition", "value": "attachment; filename=ethio-underground.apk" },
+      { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+    ]},
+    { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] }
+  ]
+}

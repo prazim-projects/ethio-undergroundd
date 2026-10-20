@@ -1,0 +1,17 @@
+.tmp/
+.git/
+node_modules/
+**/node_modules/
+**/.turbo/
+**/__pycache__/
+apps/api/
+apps/docs/
+apps/web/android/
+apps/web/dist/
+apps/web/dist-native/
+apps/web/test-results/
+apps/web/playwright-report/
+.env*.local
+**/.env*.local
+*.keystore
+*.jks

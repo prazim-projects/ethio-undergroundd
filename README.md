@@ -6,6 +6,8 @@ The project is split into a Vue/Vite frontend, a Django GraphQL API, and shared 
 
 Creators can now create an account, sign in with email/password or Google, and publish music, photography, visual art, videography, poetry, or other files.
 
+Android/Capacitor setup, native camera capture, private offline downloads, image compression, resumable media uploads, and paginated catalog management are documented in [the web app runbook](apps/web/README.md). The current catalog uses `CreatorProfile` and `CreativeWork`; the Artist/Album/Track descriptions below are historical.
+
 ## Tech Stack
 
 - Turborepo for workspace orchestration

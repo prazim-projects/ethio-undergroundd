@@ -6,6 +6,13 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#171d19">
+    <script>
+      // Apply the saved palette before CSS/first paint, including offline reloads.
+      try {
+        var theme = localStorage.getItem('underground_theme');
+        document.documentElement.dataset.theme = ['light', 'dark', 'abyssinia'].includes(theme) ? theme : 'light';
+      } catch (_) { document.documentElement.dataset.theme = 'light'; }
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Underground">
     <title>Ethio Underground</title>

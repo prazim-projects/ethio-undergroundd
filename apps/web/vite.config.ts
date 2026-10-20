@@ -1,11 +1,24 @@
 import { fileURLToPath, URL } from "node:url";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { VitePWA } from "vite-plugin-pwa";
+import { resolveDeployment } from './config/deployment';
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const native = mode === 'native';
+  const env = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env, MODE: mode };
+  const deployment = resolveDeployment(env, native);
+  return {
+  define: {
+    'import.meta.env.VITE_API_URL': JSON.stringify(deployment.apiUrl),
+    'import.meta.env.VITE_FRONTEND_URL': JSON.stringify(deployment.frontendUrl),
+  },
+  build: { outDir: native ? 'dist-native' : 'dist' },
+  // Never bundle the downloadable APK inside another Android APK.
+  publicDir: native ? false : 'public',
   plugins: [vue(), VitePWA({
+    disable: native,
     registerType: "prompt",
     includeAssets: ["pwa-icon.svg", "icons/*.png"],
     manifest: {
@@ -21,9 +34,10 @@ export default defineConfig({
     workbox: {
       importScripts: ["/sw-migration.js"],
       clientsClaim: true,
-      globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
+      globPatterns: ["**/*.{js,css,html,png,webp,svg,ico}"],
+      maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       navigateFallback: "/index.html",
-      navigateFallbackDenylist: [/^\/graphql/, /^\/auth\//, /^\/media\//, /^\/works\/\d+\//],
+      navigateFallbackDenylist: [/^\/graphql/, /^\/auth\//, /^\/media\//, /^\/downloads\/.*\.apk$/, /^\/works\/\d+\//],
       cleanupOutdatedCaches: true,
       // Only build assets are precached. Never cache tokens, API responses or user media.
       runtimeCaching: [],
@@ -34,4 +48,5 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+};
 });

@@ -1,0 +1,108 @@
+:root {
+  color-scheme: light;
+  --bg: #f9faf9; --surface: #fff; --surface-soft: #f1f3f1; --surface-active: #eaf1eb;
+  --text: #202420; --muted: #626a63; --secondary-text: #505b52;
+  --line: #e1e5e1; --input-line: #bdc8be; --accent: #156b43; --on-accent: #fff;
+  --green: var(--accent); --gold: #efc64c; --red: #b64342;
+  --hover: #e8ece8; --accent-soft: #dcebdd; --avatar-bg: #e8ede8; --avatar-text: #45634c;
+  --notice-bg: #f7edc9; --notice-text: #604c14; --error-bg: #fff0ee; --error-text: #a52d2d;
+  --nav-bg: #171d19; --nav-text: #cbd2cc; --nav-muted: #a8b2ab;
+  --nav-hover: #252d27; --nav-active: #303c31; --nav-accent: #f4d676;
+  --player-mobile: #f0f5f0; --toast-bg: #202a23; --toast-text: #fff;
+  --mobile-nav-height: 59px;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #101714; --surface: #18221d; --surface-soft: #202c25; --surface-active: #253e30;
+  --text: #eef4ee; --muted: #b6c4b9; --secondary-text: #cbd8ce;
+  --line: #38483e; --input-line: #5a7061; --accent: #86dfb2; --on-accent: #10231a;
+  --hover: #293a30; --accent-soft: #254632; --avatar-bg: #2a3b30; --avatar-text: #c2e8cd;
+  --notice-bg: #3b321b; --notice-text: #f8dfa0; --error-bg: #482729; --error-text: #ffc6bf;
+  --nav-bg: #111916; --nav-text: #d0ddd4; --nav-muted: #a7bbad;
+  --nav-hover: #24372b; --nav-active: #294332; --nav-accent: #b2f0cd;
+  --player-mobile: #1b2a21; --toast-bg: #d7ebdf; --toast-text: #14231b;
+}
+:root[data-theme="abyssinia"] {
+  color-scheme: dark;
+  --bg: #17110d; --surface: #251c15; --surface-soft: #30241a; --surface-active: #3d3020;
+  --text: #fff1d5; --muted: #d4bea0; --secondary-text: #e1cbb0;
+  --line: #5b4732; --input-line: #90744d; --accent: #f3ca78; --on-accent: #281b0d;
+  --gold: #f3ca78; --red: #ec8e72; --hover: #3a2d20; --accent-soft: #493721;
+  --avatar-bg: #473724; --avatar-text: #ffe3a8;
+  --notice-bg: #43351c; --notice-text: #ffe2a0; --error-bg: #4a2724; --error-text: #ffc2b2;
+  --nav-bg: #20150e; --nav-text: #ecd9bd; --nav-muted: #cdb28d;
+  --nav-hover: #34251a; --nav-active: #4a3520; --nav-accent: #ffe0a0;
+  --player-mobile: #2d2117; --toast-bg: #f5dbaa; --toast-text: #281b0d;
+  --mobile-nav-height: 61px;
+}
+
+/* Explicit surfaces and foregrounds also theme native form controls and autofill. */
+html { background: var(--bg); color: var(--text); }
+body { background: var(--bg); color: var(--text); }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
+input, select, textarea { caret-color: var(--text); }
+option { background: var(--surface); color: var(--text); }
+input:-webkit-autofill { -webkit-text-fill-color: var(--text); box-shadow: inset 0 0 0 1000px var(--surface); }
+::selection { color: var(--on-accent); background: var(--accent); }
+.theme-picker { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; color: var(--text); background: var(--surface-soft); border: 1px solid var(--input-line); border-radius: 6px; padding: 4px 8px; }
+.theme-picker select { color: var(--text); background: var(--surface-soft); border: 0; min-height: 34px; max-width: 108px; font-size: 12px; cursor: pointer; }
+.topbar { min-height: 76px; }
+.get-app-link { flex-shrink: 0; }
+.footer-install { color: var(--accent); text-decoration: underline; white-space: nowrap; }
+.page-footer { flex-wrap: wrap; }
+.install-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 22px; }
+.install-card { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding: 26px; border: 1px solid var(--input-line); border-radius: 8px; background: var(--surface); }
+.install-card > svg { color: var(--accent); }
+.install-card h2, .install-instructions h2 { font-size: 22px; }
+.install-card .eyebrow { margin: 0; }
+.install-card p, .install-instructions p { color: var(--muted); font-size: 13px; line-height: 1.8; }
+.install-card .primary-button { margin-top: auto; }
+.install-card .install-feedback { color: var(--text); }
+.install-card .install-note, .install-instructions .install-note { font-size: 12px; }
+.install-instructions { margin-top: 32px; padding-top: 26px; border-top: 1px solid var(--line); }
+.install-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 24px; margin: 20px 0; }
+.install-steps h3 { font-size: 15px; color: var(--text); }
+.install-steps ol { padding-left: 20px; margin: 12px 0; color: var(--muted); font-size: 13px; line-height: 1.9; list-style: decimal; }
+
+/* Original art is decorative in navigation; link names remain readable text. */
+.abyssinia-portrait { display: inline-block; width: 35px; height: 35px; flex-shrink: 0; border: 1px solid #af8550; border-radius: 50%; background-color: #49351f; background-image: url('./assets/abyssinia-creatives.png'); background-repeat: no-repeat; background-size: 660% auto; background-position: 18% 0; }
+.abyssinia-portrait--1 { background-position: 51% 0; }
+.abyssinia-portrait--2 { background-position: 88% 0; }
+[data-theme="abyssinia"] .sidebar { border-right: 1px solid var(--line); }
+[data-theme="abyssinia"] .sidebar nav a { gap: 11px; padding-block: 8px; }
+[data-theme="abyssinia"] .sidebar-bottom::before { content: ''; display: block; height: 80px; margin-bottom: 18px; background: url('./assets/abyssinia-creatives.png') center / contain no-repeat; }
+[data-theme="abyssinia"] .sidebar-caption { color: var(--nav-muted); }
+[data-theme="abyssinia"] .shell-header { border-top: 3px solid #d2a349; }
+[data-theme="abyssinia"] .browse-tabs button.active { border-image: linear-gradient(90deg, #6cb187, #f3ca78, #ec8e72) 1; }
+[data-theme="abyssinia"] .page-heading h1 { font-family: Georgia, 'Times New Roman', serif; font-weight: 600; }
+[data-theme="abyssinia"] .tibeb-mark { width: 112px; }
+[data-theme="abyssinia"] .local-note { border-top: 3px double var(--input-line); }
+[data-theme="abyssinia"] .page-footer { border-top: 3px double var(--line); }
+[data-theme="abyssinia"] .mobile-nav { border-top: 3px solid #a77d3e; }
+[data-theme="abyssinia"] .mobile-nav .abyssinia-portrait { width: 23px; height: 23px; }
+[data-theme="abyssinia"] .music-player { border-top: 3px solid #a77d3e; }
+.abyssinia-hero { position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(230px, .9fr) minmax(0, 1.6fr); align-items: end; gap: 12px; overflow: hidden; margin: 0 0 32px; border: 1px solid #795a32; border-radius: 10px; background: linear-gradient(110deg, #2a2116 0%, #263125 72%, #3c2b1b 100%); box-shadow: 0 12px 32px #0002; }
+.abyssinia-hero::before { content: ''; position: absolute; z-index: -1; inset: 0; opacity: .12; background: repeating-linear-gradient(45deg, transparent 0 22px, #e8bf68 23px 24px, transparent 25px 46px), repeating-linear-gradient(-45deg, transparent 0 22px, #e8bf68 23px 24px, transparent 25px 46px); mask-image: linear-gradient(90deg, transparent 25%, #000); }
+.abyssinia-hero__copy { padding: 28px 0 30px 28px; align-self: center; }
+.abyssinia-hero__copy .eyebrow { color: #f3ca78; font-size: 9px; line-height: 1.6; }
+.abyssinia-hero h2 { color: #fff1d5; font: 600 clamp(26px, 2.5vw, 38px)/1.15 Georgia, serif; }
+.abyssinia-hero h2 em { color: #f6cf85; font-style: normal; }
+.abyssinia-hero p { color: #e1cbb0; font-size: 12px; line-height: 1.8; margin: 14px 0 18px; max-width: 320px; }
+.abyssinia-hero__art { width: 100%; height: auto; align-self: end; display: block; margin-bottom: 25px; }
+.abyssinia-hero__stamp { position: absolute; bottom: 10px; right: 18px; font-size: 8px; font-weight: 700; color: #f3dcb8; }
+@media (max-width: 1150px) { .topbar { gap: 12px; } .theme-picker { gap: 2px; } }
+@media (max-width: 760px) {
+  .topbar { min-height: auto; }
+  .theme-picker { padding: 2px 6px; }
+  .theme-picker select { max-width: 88px; font-size: 11px; }
+  .theme-picker > svg { display: none; }
+  .abyssinia-hero { grid-template-columns: 1fr; gap: 0; }
+  .abyssinia-hero__copy { padding: 24px 24px 12px; }
+  .abyssinia-hero h2 { font-size: 32px; }
+  .abyssinia-hero p { max-width: none; }
+  .abyssinia-hero__art { margin-bottom: 25px; padding: 0 8px; }
+  .abyssinia-hero__stamp { right: 14px; }
+  [data-theme="abyssinia"] .mobile-nav { padding-top: 6px; }
+  .mobile-nav a { min-width: 0; flex: 1; }
+  .music-player { bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom)); }
+}

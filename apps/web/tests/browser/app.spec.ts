@@ -43,7 +43,7 @@ test('Logic/security: inline text is escaped and views update in the dialog and 
   const counts = await mockCatalog(page);
   await page.goto('/');
   await page.getByRole('button', { name: 'View A Small Poem' }).click();
-  await expect(page.locator('ion-modal .text-preview')).toContainText('<script>');
+  await expect(page.locator('.viewer-dialog .text-preview')).toContainText('<script>');
   await expect.poll(() => counts.get('5')).toBe(1);
   await expect(page.locator('.viewer-credit')).toContainText('11 views');
   expect(await page.evaluate(() => (window as any).previewInjected)).toBeUndefined();
@@ -55,8 +55,8 @@ test('UI: visual-art PDF uses document stream and modal restores focus', async (
   await mockCatalog(page); await page.goto('/');
   const opener = page.getByRole('button', { name: 'View Visual Art Portfolio' });
   await opener.click();
-  await expect(page.locator('ion-modal iframe')).toHaveAttribute('src', /\/works\/6\/stream\/$/);
-  await expect(page.locator('ion-modal iframe')).toBeVisible();
+  await expect(page.locator('.viewer-dialog iframe')).toHaveAttribute('src', /\/works\/6\/stream\/$/);
+  await expect(page.locator('.viewer-dialog iframe')).toBeVisible();
   await page.getByRole('button', { name: 'Close viewer' }).click();
   await expect(opener).toBeFocused();
 });
@@ -123,7 +123,7 @@ test('PWA: installed shell reloads offline and never caches API responses', asyn
   await context.setOffline(true);
   await page.goto('http://127.0.0.1:4173/search');
   await expect(page.getByRole('heading', { name: 'Dig a little deeper.' })).toBeVisible();
-  await expect(page.getByText('You are offline. Reconnect to load and play tracks.')).toBeVisible();
+  await expect(page.getByText('You are offline. Open Offline downloads to play saved works.')).toBeVisible();
   const cached = await page.evaluate(async () => (await Promise.all((await caches.keys()).map(async (name) => (await (await caches.open(name)).keys()).map((request) => request.url)))).flat());
   expect(cached.filter((url) => /\/graphql|\/auth\/|\/media\/|\/works\/\d+/.test(url))).toEqual([]);
   await context.close();
