@@ -50,3 +50,17 @@ class CreativeWork(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class UploadSession(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    creator = models.ForeignKey(CreatorProfile, on_delete=models.CASCADE)
+    filename = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=100)
+    work_type = models.CharField(max_length=32)
+    size = models.PositiveBigIntegerField()
+    offset = models.PositiveBigIntegerField(default=0)
+    # Retain the completed work so a lost completion response can be retried safely.
+    work = models.ForeignKey(CreativeWork, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)

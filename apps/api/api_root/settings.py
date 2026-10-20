@@ -131,9 +131,29 @@ STATIC_URL = 'static/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+PRIVATE_UPLOAD_ROOT = Path(os.getenv('PRIVATE_UPLOAD_ROOT', str(BASE_DIR / 'private-uploads')))
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ethio-underground.vercel.app/').rstrip('/')
 
-CORS_ALLOWED_ORIGINS = os.getenv('WEB_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000,http://localhost:4173,http://127.0.0.1:4173').split(',')
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        'WEB_ORIGINS',
+        ','.join([
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'http://localhost:4173',
+            'http://127.0.0.1:4173',
+            FRONTEND_URL,
+            'https://localhost',
+            'http://localhost',
+            'capacitor://localhost',
+        ]),
+    ).split(',')
+    if origin.strip()
+]
 CORS_ALLOW_CREDENTIALS = True
+from corsheaders.defaults import default_headers
+CORS_ALLOW_HEADERS = (*default_headers, 'upload-offset')
 
 GRAPHENE = {
     'SCHEMA': 'schema.schema',

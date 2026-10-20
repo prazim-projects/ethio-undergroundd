@@ -4,6 +4,7 @@ from pathlib import Path
 from decimal import Decimal, InvalidOperation
 
 from django.core.files.uploadedfile import UploadedFile
+from django.core.exceptions import SuspiciousFileOperation
 from django.db.models import F
 from django.utils.text import get_valid_filename
 from django.http import FileResponse
@@ -23,7 +24,21 @@ MAX_UPLOAD_SIZE = 30 * 1024 * 1024
 MAX_AVATAR_SIZE = 4 * 1024 * 1024
 BLOCKED_EXTENSIONS = {".bat", ".cmd", ".com", ".dll", ".exe", ".hta", ".html", ".js", ".jar", ".php", ".ps1", ".sh", ".svg", ".vbs"}
 WORK_UPLOAD_RULES = {
-    "music": {"ext": {".mp3", ".m4a", ".aac", ".ogg", ".wav"}, "mime": {"audio/mpeg", "audio/mp4", "audio/aac", "audio/ogg", "audio/wav", "audio/x-wav"}},
+    "music": {
+        "ext": {".mp3", ".m4a", ".aac", ".ogg", ".wav"},
+        "mime": {
+            "audio/mpeg",
+            "audio/mp4",
+            "audio/mp4a-latm",
+            "audio/aac",
+            "audio/x-m4a",
+            "audio/ogg",
+            "audio/wav",
+            "audio/x-wav",
+            "video/mp4",
+            "application/octet-stream",
+        },
+    },
     "photography": {"ext": {".gif", ".jpg", ".jpeg", ".png", ".webp"}, "mime": {"image/gif", "image/jpeg", "image/png", "image/webp"}},
     "visual_art": {"ext": {".gif", ".jpg", ".jpeg", ".png", ".webp", ".pdf"}, "mime": {"image/gif", "image/jpeg", "image/png", "image/webp", "application/pdf"}},
     "videography": {"ext": {".mp4", ".mov", ".webm"}, "mime": {"video/mp4", "video/quicktime", "video/webm"}},
@@ -58,7 +73,10 @@ def user_from_token(request):
 
 
 def _safe_file_name(uploaded_file: UploadedFile) -> str:
-    return get_valid_filename(Path(uploaded_file.name).name).lower()
+    try:
+        return get_valid_filename(Path(uploaded_file.name).name).lower()
+    except SuspiciousFileOperation:
+        return ""
 
 
 def _upload_error(uploaded_file: UploadedFile, rule: dict[str, set[str]], max_size: int) -> str:
@@ -121,18 +139,22 @@ def upload_work(request):
         user = user_from_token(request)
     except PermissionError as error:
         return JsonResponse({"error": str(error)}, status=401)
-    uploaded_file = request.FILES.get("file")
-    title = request.POST.get("title", "").strip()
-    work_type = request.POST.get("workType", "other")
+    return create_uploaded_work(user, request.POST, request.FILES.get("file"), request.FILES.get("thumbnail"))
+
+
+def create_uploaded_work(user, data, uploaded_file, thumbnail=None, max_size=MAX_UPLOAD_SIZE):
+    title = data.get("title", "").strip()
+    work_type = data.get("workType", "other")
     if not uploaded_file or not title:
         return JsonResponse({"error": "title and file are required"}, status=400)
+    if len(title) > 220:
+        return JsonResponse({"error": "Title must be at most 220 characters"}, status=400)
     valid_types = {choice for choice, _ in CreativeWork.WorkType.choices}
     if work_type not in valid_types:
         return JsonResponse({"error": "Unsupported work type"}, status=400)
-    upload_error = _upload_error(uploaded_file, WORK_UPLOAD_RULES[work_type], MAX_UPLOAD_SIZE)
+    upload_error = _upload_error(uploaded_file, WORK_UPLOAD_RULES[work_type], max_size)
     if upload_error:
         return JsonResponse({"error": upload_error}, status=400)
-    thumbnail = request.FILES.get("thumbnail")
     if thumbnail:
         error = avatar_upload_error(thumbnail)
         if error:
@@ -140,9 +162,9 @@ def upload_work(request):
     profile = _creator_profile_for_user(user)
     if profile.profile_type != CreatorProfile.ProfileType.CREATOR:
         return JsonResponse({"error": "Only creator accounts can publish work"}, status=403)
-    is_payable = request.POST.get("isPayable", "false").lower() == "true"
+    is_payable = data.get("isPayable", "false").lower() == "true"
     try:
-        price_etb = Decimal(request.POST.get("priceEtb", "0") or "0")
+        price_etb = Decimal(data.get("priceEtb", "0") or "0")
     except InvalidOperation:
         return JsonResponse({"error": "Price must be a valid number"}, status=400)
     if not price_etb.is_finite() or price_etb < 0 or price_etb > Decimal("999999.99"):
@@ -153,7 +175,7 @@ def upload_work(request):
         creator=profile,
         title=title,
         work_type=work_type,
-        description=request.POST.get("description", ""),
+        description=data.get("description", ""),
         file=uploaded_file,
         thumbnail=thumbnail,
         is_payable=is_payable,
@@ -183,8 +205,23 @@ def my_works(request):
     profile = _creator_profile_for_user(user)
     if profile.profile_type != CreatorProfile.ProfileType.CREATOR:
         return JsonResponse({"error": "Only creator accounts can manage creations"}, status=403)
-    works = CreativeWork.objects.filter(creator=profile).order_by("-created_at")
-    return JsonResponse({"works": [_work_payload(work) for work in works]})
+    try:
+        page = int(request.GET.get("page", "1"))
+        page_size = min(50, max(1, int(request.GET.get("pageSize", "20"))))
+        if page < 1:
+            raise ValueError
+    except (ValueError, TypeError):
+        return JsonResponse({"error": "Invalid page or pageSize"}, status=400)
+    works = CreativeWork.objects.filter(creator=profile).order_by("-created_at", "-pk")
+    total = works.count()
+    start = (page - 1) * page_size
+    response = JsonResponse({
+        "works": [_work_payload(work) for work in works[start:start + page_size]],
+        "page": page, "pageSize": page_size, "total": total,
+        "hasMore": start + page_size < total,
+    })
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @csrf_exempt

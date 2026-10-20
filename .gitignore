@@ -18,6 +18,8 @@ apps/api/catalog/test-media/
 out/
 build
 
+android/
+!apps/web/android/
 # misc
 .DS_Store
 *.pem
@@ -52,3 +54,4 @@ apps/api/venv-underground/
 apps/api/tracks/
 apps/api/covers/
 apps/api/media/*
+apps/api/private-uploads/

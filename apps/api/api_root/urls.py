@@ -23,6 +23,7 @@ from graphene_django.views import GraphQLView
 
 from catalog.auth import fayda_sign_in_callback, fayda_sign_in_start, google_sign_in, profile_detail, sign_in, sign_up
 from catalog.payments import initiate_telebirr_payment
+from catalog.resumable import start_upload, upload_session
 from catalog.uploads import download_work, my_works, record_work_play, stream_work, update_work_settings, upload_work, public_media
 from graphene.validation import depth_limit_validator
 from graphql import specified_rules
@@ -40,6 +41,8 @@ urlpatterns = [
     path('auth/fayda/callback/', fayda_sign_in_callback),
     path('auth/profile/', profile_detail),
     path('works/upload/', upload_work),
+    path('works/uploads/', start_upload),
+    path('works/uploads/<uuid:upload_id>/', upload_session),
     path('works/mine/', my_works),
     path('works/<int:work_id>/stream/', stream_work),
     path('works/<int:work_id>/download/', download_work),

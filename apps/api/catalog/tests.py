@@ -169,6 +169,31 @@ class CreatorAuthAndUploadTests(TestCase):
 
 		self.assertEqual(response.status_code, 400)
 
+	def test_m4a_upload_accepts_device_mime_type(self):
+		signup = self.client.post(
+			"/auth/sign-up/",
+			data=json.dumps(
+				{
+					"displayName": "M4A Singer",
+					"username": "m4a-singer",
+					"email": "m4a@example.com",
+					"password": "strong-pass-123",
+					"confirmPassword": "strong-pass-123",
+					"profileType": "creator",
+				}
+			),
+			content_type="application/json",
+		)
+		token = signup.json()["token"]
+		uploaded = SimpleUploadedFile("song.m4a", b"audio bytes", content_type="audio/x-m4a")
+		response = self.client.post(
+			"/works/upload/",
+			{"title": "M4A Song", "workType": "music", "file": uploaded},
+			HTTP_AUTHORIZATION=f"Token {token}",
+		)
+
+		self.assertEqual(response.status_code, 201)
+
 	def test_regular_user_cannot_upload_work(self):
 		signup = self.client.post(
 			"/auth/sign-up/",
