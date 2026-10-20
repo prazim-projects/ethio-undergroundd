@@ -24,6 +24,7 @@
           <span>{{ avatar?.name ?? "Upload profile image" }}</span>
           <input type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" @change="selectAvatar" />
         </label>
+        <button v-if="nativeCameraAvailable" type="button" class="secondary-button" :disabled="loading" @click="captureAvatar">Take profile photo</button>
         <button class="primary-button" type="submit" :disabled="loading">{{ loading ? "Saving..." : "Save profile" }}</button>
       </form>
       <p v-if="message" class="upload-panel__message">{{ message }}</p>
@@ -40,6 +41,7 @@
 import { computed, ref, watch } from "vue";
 import { mediaUrl } from "../lib/graphql";
 import { useAuth } from "../composables/use-auth";
+import { takePhoto, nativeCameraAvailable } from "../lib/camera";
 
 type ProfileType = "listener" | "creator";
 const { user, saveProfile } = useAuth();
@@ -79,6 +81,11 @@ function selectAvatar(event: Event) {
   }
   avatar.value = selected;
   if (selected) avatarPreview.value = URL.createObjectURL(selected);
+}
+
+async function captureAvatar() {
+  try { avatar.value = await takePhoto(); avatarPreview.value = URL.createObjectURL(avatar.value); }
+  catch (err) { error.value = err instanceof Error ? err.message : 'Camera unavailable.'; }
 }
 
 async function submit() {

@@ -6,7 +6,7 @@
         <h2>Manage your catalog.</h2>
         <p class="page-panel__intro">Edit each work's title, description, visibility, payment setting, and price.</p>
       </div>
-      <button class="secondary-button" type="button" @click="loadWorks" :disabled="loading">{{ loading ? "Loading..." : "Refresh" }}</button>
+      <button class="secondary-button" type="button" @click="loadWorks(1, true)" :disabled="loading">{{ loading ? "Loading..." : "Refresh" }}</button>
     </div>
 
     <p v-if="message" class="upload-panel__message">{{ message }}</p>
@@ -71,11 +71,16 @@
         </div>
       </article>
     </div>
+    <nav v-if="total > 20" class="pagination" aria-label="Catalog pages">
+      <button class="secondary-button" :disabled="loading || currentPage === 1" @click="loadWorks(currentPage - 1)">Previous</button>
+      <span>Page {{ currentPage }} of {{ Math.ceil(total / 20) }}</span>
+      <button class="secondary-button" :disabled="loading || !hasMore" @click="loadWorks(currentPage + 1)">Next</button>
+    </nav>
   </section>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { ref, watch } from "vue";
 import { listMyWorks, mediaUrl, updateWorkSettings, type ManagedWork } from "../lib/graphql";
 import { useAuth } from "../composables/use-auth";
 
@@ -86,17 +91,28 @@ const savingId = ref<number | null>(null);
 const activeWorkId = ref<number | null>(null);
 const message = ref("");
 const error = ref("");
+const currentPage = ref(1);
+const total = ref(0);
+const hasMore = ref(false);
+let version = 0;
 
-async function loadWorks() {
+async function loadWorks(page = 1, force = false) {
   if (!token.value || user.value?.profileType !== "creator") return;
+  const requestVersion = ++version;
   loading.value = true;
   error.value = "";
   try {
-    works.value = (await listMyWorks(token.value)).works;
+    const result = await listMyWorks(token.value, page, force);
+    if (requestVersion !== version) return;
+    works.value = result.works;
+    currentPage.value = result.page;
+    total.value = result.total;
+    hasMore.value = result.hasMore;
+    activeWorkId.value = null;
   } catch (requestError) {
-    error.value = requestError instanceof Error ? requestError.message : "Unable to load creations";
+    if (requestVersion === version) error.value = requestError instanceof Error ? requestError.message : "Unable to load creations";
   } finally {
-    loading.value = false;
+    if (requestVersion === version) loading.value = false;
   }
 }
 
@@ -124,6 +140,7 @@ function popularityScore(work: ManagedWork) {
 
 async function saveWork(work: ManagedWork) {
   if (!token.value) return;
+  const sessionToken = token.value;
   savingId.value = work.id;
   message.value = "";
   error.value = "";
@@ -135,6 +152,7 @@ async function saveWork(work: ManagedWork) {
       isPayable: work.isPayable,
       priceEtb: work.priceEtb,
     });
+    if (token.value !== sessionToken) return;
     works.value = works.value.map((item) => (item.id === work.id ? response.work : item));
     message.value = "Creation settings updated.";
   } catch (requestError) {
@@ -144,7 +162,10 @@ async function saveWork(work: ManagedWork) {
   }
 }
 
-onMounted(() => {
-  loadWorks();
-});
+watch([token, () => user.value?.profileType], () => {
+  version++;
+  works.value = []; currentPage.value = 1; total.value = 0; hasMore.value = false;
+  loading.value = false; message.value = ""; error.value = "";
+  void loadWorks();
+}, { immediate: true });
 </script>

@@ -1,7 +1,7 @@
 <template>
   <section class="music-player" aria-label="Now playing">
-    <audio ref="audio" :src="workStreamUrl(work.id)" preload="metadata" @playing="onPlaying" @pause="playing = false" @timeupdate="sync" @loadedmetadata="sync" @ended="ended" @error="playbackError" />
-    <div class="player-identity"><WorkArtwork :work="work" /><div><strong>{{ work.title }}</strong><span>{{ work.creator.displayName }}</span></div></div>
+    <audio ref="audio" :src="source" preload="metadata" @playing="onPlaying" @pause="playing = false" @timeupdate="sync" @loadedmetadata="sync" @ended="ended" @error="playbackError" />
+    <div class="player-identity"><WorkArtwork :work="work" /><div><strong>{{ work.title }}</strong><span>{{ work.creator.displayName }}</span><OfflineDownload :key="work.id" :work="work" /></div></div>
     <div class="player-center"><div class="player-buttons">
       <button class="icon-button player-shuffle" title="Shuffle" aria-label="Shuffle" :aria-pressed="shuffle" @click="shuffle = !shuffle"><Shuffle :size="17" /></button>
       <button class="icon-button" title="Previous track" aria-label="Previous track" @click="advance(-1)"><SkipBack :size="20" /></button>
@@ -16,10 +16,13 @@
 import { ref, watch, nextTick } from "vue";
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Volume2, Download } from "lucide-vue-next";
 import WorkArtwork from "./WorkArtwork.vue";
-import { workStreamUrl, workDownloadUrl } from "../lib/graphql";
+import OfflineDownload from "./OfflineDownload.vue";
+import { useMediaSource } from "../composables/use-media-source";
+import { workDownloadUrl } from "../lib/graphql";
 import { formatTime, nextIndex } from "../lib/media";
 import type { CreativeWork } from "../composables/use-catalog";
 const props = defineProps<{ work: CreativeWork; queue: CreativeWork[]; selection: number }>();
+const source = useMediaSource(() => props.work.id);
 const emit = defineEmits<{ select: [work: CreativeWork]; played: [work: CreativeWork]; error: [message: string] }>();
 const audio = ref<HTMLAudioElement>();
 const playing = ref(false);
@@ -29,12 +32,14 @@ const volume = ref(0.8);
 const shuffle = ref(false);
 const repeat = ref(false);
 let counted = false;
-watch(() => props.selection, async () => {
+watch([() => props.selection, source], async (_, __, cleanup) => {
+  let stale = false;
+  cleanup(() => { stale = true; });
   counted = false;
   time.value = 0;
   duration.value = 0;
   await nextTick();
-  if (!audio.value) return;
+  if (stale || !audio.value || !source.value) return;
   audio.value.volume = volume.value;
   audio.value.load();
   await play();

@@ -15,6 +15,11 @@
     "turbo": "^2.9.5"
   },
   "packageManager": "npm@11.6.2",
+  "overrides": {
+    "@capacitor/cli": {
+      "tar": "^7.5.22"
+    }
+  },
   "workspaces": [
     "apps/*",
     "packages/*"

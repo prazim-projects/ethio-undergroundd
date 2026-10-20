@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/graphql/";
+import { compressImage } from "./images";
+import { API_URL } from "./deployment";
+
 export const API_ORIGIN = API_URL.replace(/\/graphql\/?$/, "");
 
 export async function queryGraphQL<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
@@ -124,6 +126,8 @@ export async function uploadWork(token: string, formData: FormData) {
 }
 
 export async function updateProfile(token: string, formData: FormData) {
+  const avatar = formData.get("avatar");
+  if (avatar instanceof File) formData.set("avatar", await compressImage(avatar, 1024));
   const response = await fetch(`${API_ORIGIN}/auth/profile/`, {
     method: "POST",
     headers: { Authorization: `Token ${token}` },
@@ -158,13 +162,48 @@ export interface WorkSettingsPayload {
   priceEtb: string;
 }
 
-export async function listMyWorks(token: string) {
-  const response = await fetch(`${API_ORIGIN}/works/mine/`, {
-    headers: { Authorization: `Token ${token}` },
-  });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error ?? "Unable to load creations");
-  return payload as { works: ManagedWork[] };
+export interface ManagedWorksPage {
+  works: ManagedWork[];
+  page: number;
+  pageSize: number;
+  total: number;
+  hasMore: boolean;
+}
+
+const managedCache = new Map<string, { expires: number; value: ManagedWorksPage }>();
+const managedRequests = new Map<string, Promise<ManagedWorksPage>>();
+let managedGeneration = 0;
+export function clearManagedWorksCache() {
+  managedGeneration++;
+  managedCache.clear();
+  managedRequests.clear();
+}
+
+export async function listMyWorks(token: string, page = 1, force = false): Promise<ManagedWorksPage> {
+  const key = `${token}:${page}`;
+  if (force) clearManagedWorksCache();
+  const cached = managedCache.get(key);
+  if (cached && cached.expires > Date.now()) return structuredClone(cached.value);
+  let pending = managedRequests.get(key);
+  if (!pending) {
+    const generation = managedGeneration;
+    pending = (async () => {
+      const response = await fetch(`${API_ORIGIN}/works/mine/?page=${page}&pageSize=20`, {
+        headers: { Authorization: `Token ${token}` }, cache: "no-store",
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Unable to load creations");
+      if (generation === managedGeneration) {
+        managedCache.delete(key);
+        managedCache.set(key, { value: payload, expires: Date.now() + 60_000 });
+        while (managedCache.size > 8) managedCache.delete(managedCache.keys().next().value!);
+      }
+      return payload as ManagedWorksPage;
+    })();
+    managedRequests.set(key, pending);
+  }
+  try { return structuredClone(await pending); }
+  finally { if (managedRequests.get(key) === pending) managedRequests.delete(key); }
 }
 
 export async function updateWorkSettings(token: string, workId: number, settings: WorkSettingsPayload) {
@@ -175,5 +214,6 @@ export async function updateWorkSettings(token: string, workId: number, settings
   });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.error ?? "Unable to update work");
+  clearManagedWorksCache();
   return payload as { work: ManagedWork };
 }

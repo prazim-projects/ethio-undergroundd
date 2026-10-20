@@ -1,5 +1,6 @@
 import { computed, ref } from "vue";
 import { signIn, signInWithGoogle, signUp, startFaydaSignIn, updateProfile, type SessionUser, type SignUpPayload } from "../lib/graphql";
+import { clearManagedWorksCache } from "../lib/graphql";
 
 const token = ref(localStorage.getItem("underground_token") ?? "");
 function storedUser(): SessionUser | null {
@@ -12,6 +13,7 @@ export function useAuth() {
   const isAuthenticated = computed(() => Boolean(token.value));
 
   function saveSession(nextToken: string, nextUser: SessionUser) {
+    clearManagedWorksCache();
     token.value = nextToken;
     user.value = nextUser;
     localStorage.setItem("underground_token", nextToken);
@@ -39,6 +41,7 @@ export function useAuth() {
   }
 
   function logout() {
+    clearManagedWorksCache();
     token.value = "";
     user.value = null;
     localStorage.removeItem("underground_token");
@@ -46,7 +49,9 @@ export function useAuth() {
   }
 
   async function saveProfile(formData: FormData) {
-    const response = await updateProfile(token.value, formData);
+    const sessionToken = token.value;
+    const response = await updateProfile(sessionToken, formData);
+    if (token.value !== sessionToken) return;
     user.value = response.user;
     localStorage.setItem("underground_user", JSON.stringify(response.user));
   }

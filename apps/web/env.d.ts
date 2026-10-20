@@ -1,7 +1,10 @@
 /// <reference types="vite-plugin-pwa/vue" />
+/// <reference types="vite/client" />
 interface ImportMetaEnv {
   readonly MODE: string;
   readonly VITE_API_URL?: string;
+  readonly VITE_FRONTEND_URL?: string;
+  readonly VITE_ANDROID_APK_URL?: string;
   readonly VITE_GOOGLE_CLIENT_ID?: string;
 }
 
@@ -19,7 +22,6 @@ interface Window {
     };
   };
 }
-/// <reference types="vite/client" />
 
 declare module "*.vue" {
   import type { DefineComponent } from "vue";
