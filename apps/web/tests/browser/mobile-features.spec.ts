@@ -13,11 +13,15 @@ async function signInFixture(page: import('@playwright/test').Page) {
 
 test('private downloads survive reload, open offline, isolate accounts and can be removed', async ({ page, context }) => {
   await signInFixture(page); await mockCatalog(page);
-  await page.route('**/works/5/download/', (route) => route.fulfill({ contentType: 'text/plain', body: 'A saved poem.', headers: { 'Access-Control-Allow-Origin': '*' } }));
+  let downloads = 0;
+  await page.route('**/works/5/download/', (route) => { downloads++; return route.fulfill({ contentType: 'text/plain', body: 'A saved poem.', headers: { 'Access-Control-Allow-Origin': '*' } }); });
   await page.goto('/');
   await page.getByRole('button', { name: 'View A Small Poem' }).click();
   await page.getByRole('button', { name: 'Save offline', exact: true }).click();
   await expect(page.getByText('Saved in Offline downloads.')).toBeVisible();
+  await page.getByRole('button', { name: 'Save offline', exact: true }).click();
+  await expect(page.getByText('Saved in Offline downloads.')).toBeVisible();
+  expect(downloads).toBe(1);
   await page.getByRole('button', { name: 'Close viewer' }).click();
   await page.goto('/downloads');
   await expect(page.locator('.offline-entry')).toHaveCount(1);
@@ -53,6 +57,9 @@ test('manage catalog paginates, reuses cache and refreshes explicitly', async ({
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Page 2 work' })).toBeVisible();
   await page.getByRole('button', { name: 'Previous', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Page 1 work' })).toBeVisible();
+  expect(requests).toEqual([1, 2]);
+  await page.reload();
   await expect(page.getByRole('heading', { name: 'Page 1 work' })).toBeVisible();
   expect(requests).toEqual([1, 2]);
   await page.getByRole('button', { name: 'Refresh', exact: true }).click();

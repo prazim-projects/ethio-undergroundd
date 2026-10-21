@@ -1,16 +1,16 @@
 <template>
   <div class="app-shell" :class="{ 'has-player': playingWork }">
     <aside class="sidebar">
-      <RouterLink to="/" class="brand" aria-label="Ethio Underground home"><AudioLines :size="30" /><span>ETHIO<br /><strong>UNDERGROUND</strong></span></RouterLink>
+      <RouterLink to="/" class="brand" aria-label="Ethio Underground home"><AudioLines :size="30" /><span>ETHIO<br /><BrandWordmark /></span></RouterLink>
       <span class="sidebar-caption">YOUR NEXT DISCOVERY</span>
-      <nav aria-label="Primary navigation"><RouterLink v-for="(item, index) in navigation" :key="item.path" :to="item.path" :class="{ active: page === item.page }" :aria-current="page === item.page ? 'page' : undefined"><AbyssiniaPortrait v-if="theme === 'abyssinia'" :variant="index" /><component v-else :is="item.icon" :size="20" /><span>{{ item.label }}</span></RouterLink></nav>
+      <nav aria-label="Primary navigation"><RouterLink v-for="(item, index) in navigation" :key="item.path" :to="item.path" :class="{ active: page === item.page }" :aria-current="page === item.page ? 'page' : undefined"><UserAvatar v-if="item.page === 'profile' && user" /><AbyssiniaPortrait v-else-if="theme === 'abyssinia'" :variant="index" /><component v-else :is="item.icon" :size="20" /><span>{{ item.label }}</span></RouterLink></nav>
       <div class="sidebar-bottom"><span class="tibeb-mark" aria-hidden="true"></span><p>Independent voices.<br />Made here. Heard everywhere.</p><span class="city-stamp">ADDIS ABABA · ETHIOPIA</span></div>
     </aside>
     <header class="shell-header"><div class="topbar">
-      <RouterLink to="/" class="mobile-brand"><AudioLines :size="23" /><strong>UNDERGROUND</strong></RouterLink>
+      <RouterLink to="/" class="mobile-brand"><AudioLines :size="23" /><BrandWordmark /></RouterLink>
       <form class="global-search" role="search" @submit.prevent="submitSearch"><Search :size="18" /><input v-model="search" aria-label="Search music and creators" placeholder="Search tracks, artists, cities..." /><button type="submit" aria-label="Submit search" title="Search"><ArrowUpRight :size="18" /></button></form>
       <RouterLink to="/publish" class="upload-link"><Upload :size="17" /><span>Upload</span></RouterLink>
-      <RouterLink to="/profile" class="account-link" :aria-label="user ? 'Your profile' : 'Sign in'"><UserRound :size="19" /><span>{{ user?.displayName || 'Sign in' }}</span></RouterLink>
+      <RouterLink to="/profile" class="account-link" :aria-label="user ? 'Your profile' : 'Sign in'"><UserAvatar v-if="user" /><UserRound v-else :size="19" /><span>{{ user?.displayName || 'Sign in' }}</span></RouterLink>
       <ThemePicker />
     </div></header>
     <main ref="content" class="shell-content"><div class="page-content">
@@ -25,7 +25,7 @@
       <template v-if="['home', 'search', 'creator', 'work'].includes(page)">
         <div v-if="page === 'home' || page === 'search'" class="browse-tabs" aria-label="Browse work type"><button v-for="type in types" :key="type.value" :class="{ active: filter === type.value }" :aria-pressed="filter === type.value" @click="setFilter(type.value)">{{ type.label }}</button></div>
         <div v-if="loading" class="loading-state" role="status"><span class="loading-spinner" aria-hidden="true"></span>Loading the catalog...</div>
-        <div v-else-if="error" class="empty-state" role="alert"><WifiOff :size="30" /><h2>Could not load the catalog</h2><p>{{ error }}</p><button class="primary-button" @click="refresh">Try again</button></div>
+        <div v-else-if="error" class="empty-state" role="alert"><WifiOff :size="30" /><h2>Could not load the catalog</h2><p>{{ error }}</p><button class="primary-button" @click="refresh(true)">Try again</button></div>
         <template v-else>
           <section v-if="page === 'home' && music.length && !filter" class="release-section" aria-labelledby="rotation-title"><div class="section-heading"><h2 id="rotation-title">In rotation</h2><span>Independent sounds, on repeat</span></div><div class="release-grid"><article v-for="work in music.slice(0, 4)" :key="work.id" class="release">
             <button class="release-cover" :aria-label="`Play ${work.title}`" @click="openWork(work)"><WorkArtwork :work="work" /><span class="release-play"><Play :size="23" fill="currentColor" /></span></button><button class="release-title" @click="openWork(work)">{{ work.title }}</button><RouterLink :to="creatorProfilePath(work.creator.publicId)">{{ work.creator.displayName }}</RouterLink><span>{{ work.creator.location || 'Independent release' }}</span>
@@ -45,8 +45,8 @@
       <div v-else class="empty-state"><h2>Page not found</h2><RouterLink to="/">Back to Discover</RouterLink></div>
       <footer class="page-footer"><AbyssiniaPortrait v-if="theme === 'abyssinia'" :variant="2" /><span>ETHIO UNDERGROUND</span><span>Independent by nature.</span><RouterLink v-if="!nativeApp" to="/install" class="footer-install">Get the app</RouterLink><span class="flag-lines" aria-hidden="true"><i></i><i></i><i></i></span></footer>
     </div></main>
-    <MusicPlayer v-if="playingWork" :work="playingWork" :queue="music" :selection="selection" @select="playWork" @played="countWork" @error="notify" />
-    <nav class="mobile-nav" aria-label="Mobile navigation"><RouterLink v-for="(item, index) in navigation" :key="item.path" :to="item.path" :class="{ active: page === item.page }" :aria-current="page === item.page ? 'page' : undefined"><AbyssiniaPortrait v-if="theme === 'abyssinia'" :variant="index" /><component v-else :is="item.icon" :size="20" /><span>{{ item.label }}</span></RouterLink></nav>
+    <MusicPlayer v-if="playingWork" :work="playingWork" :queue="playbackQueue" :selection="selection" :resume="restoredPlayback" @select="playWork" @played="countWork" @error="notify" />
+    <nav class="mobile-nav" aria-label="Mobile navigation"><RouterLink v-for="(item, index) in navigation" :key="item.path" :to="item.path" :class="{ active: page === item.page }" :aria-current="page === item.page ? 'page' : undefined"><UserAvatar v-if="item.page === 'profile' && user" /><AbyssiniaPortrait v-else-if="theme === 'abyssinia'" :variant="index" /><component v-else :is="item.icon" :size="20" /><span>{{ item.label }}</span></RouterLink></nav>
     <WorkViewer :work="viewedWork" @close="viewedWork = null" @viewed="countWork" @pay="payForWork" />
     <div v-if="message" class="app-toast" role="status">{{ message }}</div>
   </div>
@@ -67,6 +67,9 @@ import MusicPlayer from './components/MusicPlayer.vue';
 import WorkViewer from './components/WorkViewer.vue';
 import ThemePicker from './components/ThemePicker.vue';
 import AbyssiniaPortrait from './components/AbyssiniaPortrait.vue';
+import BrandWordmark from './components/BrandWordmark.vue';
+import UserAvatar from './components/UserAvatar.vue';
+import { restorePlayback, clearPlayback } from './lib/playback';
 import abyssiniaArt from './assets/abyssinia-creatives.png';
 import { useTheme } from './composables/use-theme';
 import { useInstall } from './composables/use-install';
@@ -89,7 +92,9 @@ const content = ref<HTMLElement>();
 const search = ref('');
 const filter = computed(() => String(route.query.type || ''));
 const message = ref('');
-const playingWork = ref<CreativeWork | null>(null);
+const restoredPlayback = restorePlayback(user.value?.id);
+const playingWork = ref<CreativeWork | null>(restoredPlayback?.work ?? null);
+const playbackQueue = ref<CreativeWork[]>(restoredPlayback?.queue ?? []);
 const viewedWork = ref<CreativeWork | null>(null);
 const offlineQueue = ref<CreativeWork[]>([]);
 const selection = ref(0);
@@ -103,16 +108,20 @@ const subtitles: Record<string, string> = { home: 'Fresh sounds and independent 
 const subtitle = computed(() => page.value === 'search' && search.value ? `Results for "${search.value}"` : subtitles[page.value] || '');
 const visibleWorks = computed(() => page.value === 'creator' ? selectedCreator.value?.works ?? [] : page.value === 'work' ? selectedWork.value ? [selectedWork.value] : [] : works.value);
 const music = computed(() => (page.value === 'downloads' ? offlineQueue.value : visibleWorks.value).filter((work) => mediaKind(work.file) === 'audio'));
-function notify(value: string) { message.value = value; }
+let toastTimer: ReturnType<typeof setTimeout> | undefined;
+function notify(value: string) { clearTimeout(toastTimer); message.value = value; toastTimer = setTimeout(() => { message.value = ''; }, 2500); }
 function submitSearch() { void router.push({ path: '/search', query: { q: search.value, ...(filter.value ? { type: filter.value } : {}) } }); }
 function setFilter(value: string) { void router.push({ path: route.path, query: { ...route.query, type: value || undefined } }); }
-async function refresh() {
+async function refresh(force = false) {
   search.value = String(route.query.q || '');
-  if (page.value === 'creator') await loadCreator(decodeURIComponent(route.path.split('/').pop()!));
-  else if (page.value === 'work') await loadWork(route.path.split('/').pop()!.replace(/^work-/, ''));
-  else if (page.value === 'home' || page.value === 'search') await load(search.value, filter.value);
+  if (page.value === 'creator') await loadCreator(decodeURIComponent(route.path.split('/').pop()!), force);
+  else if (page.value === 'work') await loadWork(route.path.split('/').pop()!.replace(/^work-/, ''), force);
+  else if (page.value === 'home' || page.value === 'search') await load(search.value, filter.value, force);
 }
-function playWork(work: CreativeWork) { playingWork.value = work; selection.value++; }
+function playWork(work: CreativeWork) {
+  if (music.value.some((item) => item.id === work.id)) playbackQueue.value = [...music.value];
+  playingWork.value = work; selection.value++;
+}
 function openWork(work: CreativeWork) {
   if (mediaKind(work.file) === 'audio') playWork(work);
   else viewedWork.value = work;
@@ -131,7 +140,7 @@ async function shareWork(work: CreativeWork) {
 async function payForWork(work: CreativeWork) { try { const payment = await initiateTelebirrPayment(work.id); location.assign(payment.checkoutUrl); } catch (err) { notify(err instanceof Error ? err.message : 'Payment is unavailable.'); } }
 function networkChanged() { online.value = navigator.onLine; }
 watch(() => route.fullPath, () => { viewedWork.value = null; content.value?.scrollTo({ top: 0, behavior: 'auto' }); void refresh(); }, { immediate: true });
-watch(() => user.value?.id, () => { playingWork.value = null; viewedWork.value = null; offlineQueue.value = []; });
+watch(() => user.value?.id, () => { clearPlayback(); playingWork.value = null; viewedWork.value = null; offlineQueue.value = []; playbackQueue.value = []; });
 onMounted(() => { window.addEventListener('online', networkChanged); window.addEventListener('offline', networkChanged); });
-onUnmounted(() => { window.removeEventListener('online', networkChanged); window.removeEventListener('offline', networkChanged); });
+onUnmounted(() => { clearTimeout(toastTimer); window.removeEventListener('online', networkChanged); window.removeEventListener('offline', networkChanged); });
 </script>

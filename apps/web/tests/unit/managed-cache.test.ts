@@ -36,7 +36,9 @@ describe('private managed catalog cache', () => {
     const fetcher = vi.fn().mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }))
       .mockResolvedValue(reply(payload('Fresh')));
     vi.stubGlobal('fetch', fetcher);
-    const pending = listMyWorks('alice'); clearManagedWorksCache();
+    const pending = listMyWorks('alice');
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    clearManagedWorksCache();
     finish(reply(payload('Stale'))); await pending;
     expect((await listMyWorks('alice')).works[0].title).toBe('Fresh');
   });

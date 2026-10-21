@@ -37,7 +37,14 @@ export async function mockCatalog(page: Page) {
     const headers = { 'Access-Control-Allow-Origin': '*' };
     if (id === '5') await route.fulfill({ contentType: 'text/plain; charset=utf-8', body: '<script>window.previewInjected=true</script>\nA small poem from Addis.', headers });
     else if (id === '6') await route.fulfill({ contentType: 'application/pdf', body: '%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF', headers });
-    else await route.fulfill({ contentType: 'audio/wav', body: silentWav(), headers });
+    else {
+      const bytes = silentWav();
+      const range = /^bytes=(\d+)-(\d*)$/.exec(route.request().headers().range || '');
+      const start = range ? Number(range[1]) : 0;
+      const end = range?.[2] ? Math.min(Number(range[2]), bytes.length - 1) : bytes.length - 1;
+      await route.fulfill({ status: range ? 206 : 200, contentType: 'audio/wav', body: bytes.subarray(start, end + 1),
+        headers: { ...headers, 'Accept-Ranges': 'bytes', 'Content-Length': String(end - start + 1), ...(range ? { 'Content-Range': `bytes ${start}-${end}/${bytes.length}` } : {}) } });
+    }
   });
   return counts;
 }

@@ -57,6 +57,8 @@
           <form class="creation-editor__form" @submit.prevent="saveWork(work)">
             <input v-model="work.title" required placeholder="Work title" aria-label="Work title" />
             <textarea v-model="work.description" rows="3" placeholder="Description" aria-label="Description"></textarea>
+            <label>Artwork (JPEG, PNG or WebP)<input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Replace artwork" @change="chooseArtwork($event, work.id)" /></label>
+            <p v-if="artwork[work.id]">{{ artwork[work.id].name }} — ready to upload with your changes.</p>
             <label class="inline-toggle">
               <input v-model="work.published" type="checkbox" />
               <span>Publicly visible</span>
@@ -94,6 +96,11 @@ const error = ref("");
 const currentPage = ref(1);
 const total = ref(0);
 const hasMore = ref(false);
+const artwork = ref<Record<number, File>>({});
+function chooseArtwork(event: Event, id: number) {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (file) artwork.value[id] = file; else delete artwork.value[id];
+}
 let version = 0;
 
 async function loadWorks(page = 1, force = false) {
@@ -151,8 +158,9 @@ async function saveWork(work: ManagedWork) {
       published: work.published,
       isPayable: work.isPayable,
       priceEtb: work.priceEtb,
-    });
+    }, artwork.value[work.id]);
     if (token.value !== sessionToken) return;
+    delete artwork.value[work.id];
     works.value = works.value.map((item) => (item.id === work.id ? response.work : item));
     message.value = "Creation settings updated.";
   } catch (requestError) {

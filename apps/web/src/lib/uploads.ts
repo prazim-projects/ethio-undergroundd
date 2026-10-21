@@ -1,5 +1,6 @@
 import { API_ORIGIN, clearManagedWorksCache } from "./graphql";
 import { compressImage } from "./images";
+import { cacheKey } from './query-cache';
 
 type Session = { id: string; offset: number; size: number; chunkSize: number; workId?: number };
 class UploadError extends Error {
@@ -56,12 +57,22 @@ export async function cancelUpload(token: string, owner: number, file: File, wor
 
 export async function publishWork(token: string, owner: number, form: FormData, signal: AbortSignal, onProgress: (value: number) => void) {
   const original = form.get("file") as File;
+  const metadata = JSON.stringify([...form.entries()].map(([name, value]) => [name, value instanceof File ? [value.name, value.size, value.lastModified] : value]));
+  const requestKey = `${await fileKey(owner, original, String(form.get('workType')))}:request:${await cacheKey(metadata)}`;
   form.set("file", await compressImage(original));
   const cover = form.get("thumbnail");
   if (cover instanceof File) form.set("thumbnail", await compressImage(cover, 1024));
   signal.throwIfAborted();
   if (original.size < 16 * 1024 * 1024 || !/\.(mp3|m4a|aac|ogg|wav|mp4|mov|webm)$/i.test(original.name)) {
-    await send(token, "POST", "/works/upload/", form, signal, {}, (loaded, total) => onProgress(Math.min(99, Math.round(loaded / total * 100))));
+    const key = storedId(requestKey) || crypto.randomUUID();
+    storeId(requestKey, key);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await send(token, "POST", "/works/upload/", form, signal, { 'Idempotency-Key': key }, (loaded, total) => onProgress(Math.min(99, Math.round(loaded / total * 100))));
+        break;
+      } catch (error) { if (!canRetry(error) || attempt >= 2) throw error; }
+    }
+    forgetId(requestKey);
   } else {
     const workType = String(form.get("workType"));
     const key = await fileKey(owner, original, workType);

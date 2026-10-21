@@ -3,7 +3,7 @@
     <span class="eyebrow">Profile</span>
     <template v-if="user">
       <div class="profile-header">
-        <img v-if="avatarPreview" class="profile-avatar" :src="avatarPreview" :alt="user.displayName" />
+        <img v-if="avatarPreview" class="profile-avatar" :src="avatarPreview" :alt="user.displayName" @error="avatarPreview = ''" />
         <div v-else class="profile-avatar profile-avatar--empty">{{ initials }}</div>
         <div>
           <h2>{{ user.displayName }}</h2>
@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, onBeforeUnmount } from "vue";
 import { mediaUrl } from "../lib/graphql";
 import { useAuth } from "../composables/use-auth";
 import { takePhoto, nativeCameraAvailable } from "../lib/camera";
@@ -56,6 +56,8 @@ const loading = ref(false);
 const message = ref("");
 const error = ref("");
 const initials = computed(() => (user.value?.displayName ?? "U").slice(0, 2).toUpperCase());
+watch(avatarPreview, (_, previous) => { if (previous.startsWith('blob:')) URL.revokeObjectURL(previous); });
+onBeforeUnmount(() => { if (avatarPreview.value.startsWith('blob:')) URL.revokeObjectURL(avatarPreview.value); });
 
 watch(
   user,
@@ -80,7 +82,7 @@ function selectAvatar(event: Event) {
     return;
   }
   avatar.value = selected;
-  if (selected) avatarPreview.value = URL.createObjectURL(selected);
+  avatarPreview.value = selected ? URL.createObjectURL(selected) : mediaUrl(user.value?.avatar) || '';
 }
 
 async function captureAvatar() {
@@ -101,6 +103,7 @@ async function submit() {
   if (avatar.value) formData.append("avatar", avatar.value);
   try {
     await saveProfile(formData);
+    avatar.value = null;
     message.value = "Profile updated.";
   } catch (requestError) {
     error.value = requestError instanceof Error ? requestError.message : "Profile update failed";

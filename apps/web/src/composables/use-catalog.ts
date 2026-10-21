@@ -51,7 +51,7 @@ export function useCatalog() {
   const selectedWork = ref<CreativeWork | null>(null);
   let requestVersion = 0;
 
-  async function load(query = "", workType = "") {
+  async function load(query = "", workType = "", force = false) {
     const version = ++requestVersion;
     loading.value = true;
     error.value = "";
@@ -62,7 +62,7 @@ export function useCatalog() {
         creativeLimit: 12,
         workLimit: 12,
         searchLimit: 60,
-      });
+      }, force);
       if (version !== requestVersion) return;
       profiles.value = result.popularCreatives;
       works.value = result.searchWorks;
@@ -73,12 +73,12 @@ export function useCatalog() {
     }
   }
 
-  async function loadCreator(publicId: string) {
+  async function loadCreator(publicId: string, force = false) {
     const version = ++requestVersion;
     loading.value = true;
     error.value = "";
     try {
-      const result = await queryGraphQL<CreatorResponse>(GET_CREATOR_QUERY, { publicId });
+      const result = await queryGraphQL<CreatorResponse>(GET_CREATOR_QUERY, { publicId }, force);
       if (version !== requestVersion) return;
       selectedCreator.value = result.getCreator;
       if (result.getCreator) {
@@ -92,11 +92,11 @@ export function useCatalog() {
     }
   }
 
-  async function loadWork(id: string) {
+  async function loadWork(id: string, force = false) {
     const version = ++requestVersion;
     loading.value = true; error.value = ""; selectedWork.value = null;
     try {
-      const result = await queryGraphQL<{ getWork: CreativeWork | null }>(GET_WORK_QUERY, { id });
+      const result = await queryGraphQL<{ getWork: CreativeWork | null }>(GET_WORK_QUERY, { id }, force);
       if (version === requestVersion) selectedWork.value = result.getWork;
     } catch (err) {
       if (version === requestVersion) error.value = err instanceof Error ? err.message : "Unable to load work";
