@@ -7,14 +7,14 @@ from django.core.files.uploadedfile import UploadedFile
 from django.core.exceptions import SuspiciousFileOperation
 from django.db.models import F
 from django.utils.text import get_valid_filename
-from django.http import FileResponse
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.conf import settings
 from django.core.cache import cache
-from django.views.static import serve
 from django.http import Http404
+from .media import stored_file_response
+from .idempotency import idempotent_mutation
 
 from rest_framework.authtoken.models import Token
 
@@ -49,17 +49,28 @@ AVATAR_RULE = {"ext": {".jpg", ".jpeg", ".png", ".webp"}, "mime": {"image/jpeg",
 
 
 def public_media(request, path, document_root=None):
-    # Keep raw development media URLs subject to the same visibility as streams.
+    if request.method not in {"GET", "HEAD"}:
+        return JsonResponse({"error": "GET or HEAD required"}, status=405)
     if path.startswith("works/"):
         work = CreativeWork.objects.filter(file=path, published=True).first()
         if work is None:
             raise Http404
         return stream_work(request, work.pk)
-    if path.startswith("work-thumbnails/") and not CreativeWork.objects.filter(thumbnail=path, published=True).exists():
+    field = None
+    if path.startswith("avatars/"):
+        profile = CreatorProfile.objects.filter(avatar=path).first()
+        field = profile.avatar if profile else None
+    elif path.startswith("work-thumbnails/"):
+        work = CreativeWork.objects.filter(thumbnail=path, published=True).first()
+        if not work:
+            try:
+                work = CreativeWork.objects.filter(thumbnail=path, creator__user=user_from_token(request)).first()
+            except PermissionError:
+                pass
+        field = work.thumbnail if work else None
+    if not field:
         raise Http404
-    if not path.startswith(("avatars/", "work-thumbnails/")):
-        raise Http404
-    return serve(request, path, document_root=document_root)
+    return stored_file_response(request, field)
 
 
 def user_from_token(request):
@@ -132,6 +143,7 @@ def _parse_bool(value, default=False):
 
 
 @csrf_exempt
+@idempotent_mutation
 def upload_work(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST required"}, status=405)
@@ -225,6 +237,7 @@ def my_works(request):
 
 
 @csrf_exempt
+@idempotent_mutation
 def update_work_settings(request, work_id):
     if request.method not in {"POST", "PATCH"}:
         return JsonResponse({"error": "POST or PATCH required"}, status=405)
@@ -237,15 +250,21 @@ def update_work_settings(request, work_id):
     if work is None:
         return JsonResponse({"error": "Work was not found"}, status=404)
     try:
-        payload = json.loads(request.body or "{}")
-    except json.JSONDecodeError:
+        payload = request.POST if request.content_type == "multipart/form-data" else json.loads(request.body or "{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
-    if not isinstance(payload, dict):
+    if not hasattr(payload, "get"):
         return JsonResponse({"error": "JSON object required"}, status=400)
 
     title = str(payload.get("title", work.title)).strip()
-    if not title:
-        return JsonResponse({"error": "Title is required"}, status=400)
+    if not title or len(title) > 220:
+        return JsonResponse({"error": "Title is required and must be at most 220 characters"}, status=400)
+    thumbnail = request.FILES.get("thumbnail")
+    if thumbnail:
+        error = avatar_upload_error(thumbnail)
+        if error:
+            return JsonResponse({"error": error}, status=400)
+        work.thumbnail = thumbnail
     work.title = title
     work.description = str(payload.get("description", work.description)).strip()
     work.published = _parse_bool(payload.get("published"), work.published)
@@ -259,32 +278,25 @@ def update_work_settings(request, work_id):
     if work.is_payable and price_etb <= 0:
         return JsonResponse({"error": "Payable works need a price greater than 0 ETB"}, status=400)
     work.price_etb = price_etb if work.is_payable else 0
-    work.save(update_fields=["title", "description", "published", "is_payable", "price_etb", "updated_at"])
+    work.save(update_fields=["title", "description", "published", "is_payable", "price_etb", "thumbnail", "updated_at"])
     return JsonResponse({"work": _work_payload(work)})
 
 
-def _work_file_response(work_id, as_attachment):
+def _work_file_response(request, work_id, as_attachment):
     work = CreativeWork.objects.filter(pk=work_id, published=True).first()
     if work is None or not work.file:
         return JsonResponse({"error": "Work file was not found"}, status=404)
-    try:
-        handle = work.file.open("rb")
-    except FileNotFoundError:
-        return JsonResponse({"error": "Work file was not found"}, status=404)
-    filename = work.file.name.rsplit("/", 1)[-1]
-    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
-    return FileResponse(handle, as_attachment=as_attachment, filename=filename, content_type=content_type)
+    return stored_file_response(request, work.file, attachment=as_attachment)
 
 
 @xframe_options_exempt
 def stream_work(request, work_id):
-    if request.method != "GET":
+    if request.method not in {"GET", "HEAD"}:
         return JsonResponse({"error": "GET required"}, status=405)
-    response = _work_file_response(work_id, as_attachment=False)
+    response = _work_file_response(request, work_id, as_attachment=False)
     # Only the public file endpoint can be embedded by the configured web app.
     origins = " ".join(settings.CORS_ALLOWED_ORIGINS)
     response["Content-Security-Policy"] = f"frame-ancestors 'self' {origins}"
-    response["Cache-Control"] = "no-store"
     return response
 
 
@@ -307,9 +319,9 @@ def record_work_play(request, work_id):
 
 
 def download_work(request, work_id):
-    if request.method != "GET":
+    if request.method not in {"GET", "HEAD"}:
         return JsonResponse({"error": "GET required"}, status=405)
-    response = _work_file_response(work_id, as_attachment=True)
-    if response.status_code == 200:
+    response = _work_file_response(request, work_id, as_attachment=True)
+    if response.status_code == 200 and request.method == "GET":
         CreativeWork.objects.filter(pk=work_id, published=True).update(download_count=F("download_count") + 1)
     return response

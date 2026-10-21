@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from catalog.models import UploadSession
+from datetime import timedelta
+from catalog.models import UploadSession, MutationReceipt
 from catalog.resumable import staging_root, upload_lock
 
 
@@ -20,3 +21,5 @@ class Command(BaseCommand):
             except (BlockingIOError, PermissionError):
                 continue
         self.stdout.write(f"Removed {count} expired upload sessions")
+        receipts, _ = MutationReceipt.objects.filter(created_at__lt=timezone.now() - timedelta(days=1)).delete()
+        self.stdout.write(f"Removed {receipts} expired mutation receipts")

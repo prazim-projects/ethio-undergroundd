@@ -81,12 +81,9 @@ class AuditSecurityLogicTests(TestCase):
         self.assertEqual(result.data["getCreator"]["works"], [])
 
     def test_raw_private_media_is_blocked(self):
-        from catalog.uploads import public_media
-        from django.http import Http404
         self.work.published = False
         self.work.save()
-        with self.assertRaises(Http404):
-            public_media(None, self.work.file.name)
+        self.assertEqual(self.client.get('/media/' + self.work.file.name).status_code, 404)
 
     def test_other_creator_cannot_edit(self):
         other = User.objects.create_user(username="other-creator")

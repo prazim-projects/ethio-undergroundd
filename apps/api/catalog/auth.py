@@ -12,6 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .models import CreatorProfile
 from .uploads import avatar_upload_error, user_from_token
+from .idempotency import idempotent_mutation
 
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{2,29}$")
 VALID_PROFILE_TYPES = {choice for choice, _ in CreatorProfile.ProfileType.choices}
@@ -208,6 +209,7 @@ def fayda_sign_in_callback(request):
 
 
 @csrf_exempt
+@idempotent_mutation
 def profile_detail(request):
     try:
         user = user_from_token(request)

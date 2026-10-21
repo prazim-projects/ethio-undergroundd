@@ -64,3 +64,16 @@ class UploadSession(models.Model):
     work = models.ForeignKey(CreativeWork, null=True, blank=True, on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(db_index=True)
+
+
+class MutationReceipt(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    key = models.CharField(max_length=128)
+    operation = models.CharField(max_length=240)
+    fingerprint = models.CharField(max_length=64)
+    payload = models.JSONField(null=True)
+    status = models.PositiveSmallIntegerField(default=200)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "key"], name="unique_user_mutation_key")]

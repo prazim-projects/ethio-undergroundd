@@ -16,7 +16,6 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.conf import settings
-from django.conf.urls.static import static
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from graphene_django.views import GraphQLView
@@ -49,7 +48,6 @@ urlpatterns = [
     path('works/<int:work_id>/play/', record_work_play),
     path('works/<int:work_id>/pay/', initiate_telebirr_payment),
     path('works/<int:work_id>/settings/', update_work_settings),
+    path('media/<path:path>', public_media),
+    path('images/<path:path>', public_media),
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, view=public_media, document_root=settings.MEDIA_ROOT)
